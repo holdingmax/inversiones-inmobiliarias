@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+{% block title %}Revisión de importación — Inversiones Inmobiliarias{% endblock %}
+
+{% block content %}
+{% set validos   = filas | selectattr('valido') | list %}
+{% set invalidos = filas | rejectattr('valido') | list %}
+
+<h3 class="section-title">Revisión previa a la carga</h3>
+
+<!-- Resumen -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-4">
+    <div class="resumen-box resumen-ingreso">
+      <div class="rs-label">Registros válidos</div>
+      <div class="rs-value ingreso">{{ validos | length }}</div>
+    </div>
+  </div>
+  <div class="col-sm-4">
+    <div class="resumen-box resumen-egreso">
+      <div class="rs-label">Registros con errores</div>
+      <div class="rs-value egreso">{{ invalidos | length }}</div>
+    </div>
+  </div>
+  <div class="col-sm-4">
+    <div class="resumen-box resumen-neto">
+      <div class="rs-label">Total en el archivo</div>
+      <div class="rs-value" style="color:var(--navy)">{{ filas | length }}</div>
+    </div>
+  </div>
+</div>
+
+{% if invalidos %}
+<div class="alert alert-warning mb-4">
+  <i class="bi bi-exclamation-triangle-fill me-2"></i>
+  Los registros con errores aparecen resaltados en rojo y <strong>no pueden seleccionarse</strong>.
+  Los registros válidos están seleccionados por defecto.
+</div>
+{% endif %}
+
+<form method="POST" action="{{ url_for('carga_confirmar') }}">
+
+  <div class="card mb-4">
+    <div class="card-header-custom d-flex align-items-center justify-content-between">
+      <span><i class="bi bi-table me-2"></i>Registros del archivo</span>
+      <div class="form-check form-switch mb-0">
+        <input class="form-check-input" type="checkbox" id="checkAll" checked>
+        <label class="form-check-label text-white" for="checkAll">Seleccionar todos los válidos</label>
+      </div>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0" style="font-size:.88rem;">
+          <thead style="background:var(--navy); color:#fff;">
+            <tr>
+              <th class="ps-3" style="width:48px;">✓</th>
+              <th>#</th>
+              <th>Fecha</th>
+              <th>Propiedad</th>
+              <th>Concepto</th>
+              <th>Tipo</th>
+              <th class="text-end">Importe</th>
+              <th>Moneda</th>
+              <th>Observaciones</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for fila in filas %}
+            <tr class="{% if not fila.valido %}table-danger{% endif %}">
+
+              <!-- Checkbox -->
+              <td class="ps-3">
+                {% if fila.valido %}
+                  <input type="checkbox" name="seleccionado" value="{{ fila.fila }}"
+                         checked class="form-check-input row-check">
+                {% else %}
+                  <input type="checkbox" class="form-check-input" disabled
+                         title="Registro con errores — no se puede cargar">
+                {% endif %}
+              </td>
+
+              <td class="text-muted">{{ fila.fila }}</td>
+              <td>{{ fila.fecha }}</td>
+              <td>{{ fila.propiedad_dir }}</td>
+              <td>{{ fila.concepto_nombre }}</td>
+
+              <!-- Tipo -->
+              <td>
+                {% if fila.concepto_tipo == 'ingreso' %}
+                  <span class="badge bg-success">Ingreso</span>
+                {% elif fila.concepto_tipo == 'egreso' %}
+                  <span class="badge bg-danger">Egreso</span>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+
+              <!-- Importe con signo -->
+              <td class="text-end fw-semibold
+                {% if fila.concepto_tipo == 'ingreso' %}ingreso
+                {% elif fila.concepto_tipo == 'egreso' %}egreso{% endif %}">
+                {% if fila.importe %}
+                  {% if fila.concepto_tipo == 'ingreso' %}+{% elif fila.concepto_tipo == 'egreso' %}−{% endif %}
+                  {{ fila.importe }}
+                {% else %}—{% endif %}
+              </td>
+
+              <td>{{ fila.moneda_signo }}</td>
+              <td class="text-muted">{{ fila.observaciones }}</td>
+
+              <!-- Estado con detalle de error -->
+              <td>
+                {% if fila.valido %}
+                  <span class="badge bg-success"><i class="bi bi-check-lg"></i> OK</span>
+                {% else %}
+                  <span class="badge bg-danger"><i class="bi bi-x-lg"></i> Error</span>
+                  <ul class="mb-0 ps-3 mt-1" style="font-size:.8rem; color:#842029;">
+                    {% for e in fila.errores %}
+                      <li>{{ e }}</li>
+                    {% endfor %}
+                  </ul>
+                {% endif %}
+              </td>
+
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Botones de acción -->
+  <div class="d-flex gap-3 justify-content-end flex-wrap">
+    <a href="{{ url_for('carga') }}#masiva" class="btn btn-outline-secondary btn-lg">
+      <i class="bi bi-arrow-left me-1"></i>Cancelar y volver
+    </a>
+    {% if validos %}
+    <button type="submit" class="btn btn-lg"
+            style="background:var(--navy); color:#fff; font-weight:600;">
+      <i class="bi bi-cloud-upload-fill me-2"></i>Cargar registros seleccionados
+    </button>
+    {% else %}
+    <button type="button" class="btn btn-lg btn-secondary" disabled>
+      <i class="bi bi-slash-circle me-2"></i>No hay registros válidos para cargar
+    </button>
+    {% endif %}
+  </div>
+
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const checkAll = document.getElementById('checkAll');
+  const rowChecks = document.querySelectorAll('.row-check');
+
+  checkAll.addEventListener('change', () => {
+    rowChecks.forEach(cb => cb.checked = checkAll.checked);
+  });
+
+  // Actualizar estado del "seleccionar todos" según estado individual
+  rowChecks.forEach(cb => {
+    cb.addEventListener('change', () => {
+      checkAll.checked = [...rowChecks].every(c => c.checked);
+      checkAll.indeterminate = !checkAll.checked && [...rowChecks].some(c => c.checked);
+    });
+  });
+</script>
+{% endblock %}

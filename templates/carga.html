@@ -1,102 +1,191 @@
 {% extends 'base.html' %}
-{% block title %}Carga de Información — Inversiones Inmobiliarias{% endblock %}
+{% block title %}Transacciones — Inversiones Inmobiliarias{% endblock %}
 
 {% block content %}
-<h3 class="section-title">Carga de Información</h3>
+<h3 class="section-title">Transacciones</h3>
 
-<div class="row justify-content-center">
-  <div class="col-lg-7">
-    <div class="card">
-      <div class="card-header-custom">
-        <i class="bi bi-plus-circle-fill me-2"></i>Nueva Transacción
-      </div>
-      <div class="card-body p-4">
+<!-- Tabs -->
+<ul class="nav nav-tabs mb-4" id="cargaTabs" role="tablist">
+  <li class="nav-item">
+    <a class="nav-link active" data-bs-toggle="tab" href="#individual" role="tab">
+      <i class="bi bi-pencil-fill me-1"></i>Carga Individual
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" data-bs-toggle="tab" href="#masiva" role="tab">
+      <i class="bi bi-file-earmark-spreadsheet-fill me-1"></i>Carga Masiva (Excel / CSV)
+    </a>
+  </li>
+</ul>
 
-        {% if not propiedades %}
-          <div class="alert alert-warning">
-            <i class="bi bi-exclamation-triangle me-2"></i>
-            No hay propiedades cargadas.
-            <a href="{{ url_for('configuracion') }}#propiedades" class="alert-link">Agregar propiedad</a>
-          </div>
-        {% elif not conceptos %}
-          <div class="alert alert-warning">
-            <i class="bi bi-exclamation-triangle me-2"></i>
-            No hay conceptos cargados.
-            <a href="{{ url_for('configuracion') }}#conceptos" class="alert-link">Agregar concepto</a>
-          </div>
-        {% elif not monedas %}
-          <div class="alert alert-warning">
-            <i class="bi bi-exclamation-triangle me-2"></i>
-            No hay monedas cargadas.
-            <a href="{{ url_for('configuracion') }}#monedas" class="alert-link">Agregar moneda</a>
-          </div>
-        {% else %}
-        <form method="POST" action="{{ url_for('carga') }}">
+<div class="tab-content">
 
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Propiedad <span class="text-danger">*</span></label>
-            <select name="propiedad_cod" class="form-select" required>
-              <option value="">— Seleccioná —</option>
-              {% for p in propiedades %}
-                <option value="{{ p.cod }}">{{ p.direccion }}</option>
-              {% endfor %}
-            </select>
+  <!-- ── TAB: Carga individual ──────────────────────────── -->
+  <div class="tab-pane fade show active" id="individual" role="tabpanel">
+    <div class="row justify-content-center">
+      <div class="col-lg-7">
+        <div class="card">
+          <div class="card-header-custom">
+            <i class="bi bi-plus-circle-fill me-2"></i>Nueva Transacción
           </div>
+          <div class="card-body p-4">
 
-          <div class="row g-3 mb-3">
-            <div class="col-sm-6">
-              <label class="form-label fw-semibold">Fecha <span class="text-danger">*</span></label>
-              <input type="date" name="fecha" class="form-control" value="{{ hoy }}" required>
-            </div>
-            <div class="col-sm-6">
-              <label class="form-label fw-semibold">Moneda <span class="text-danger">*</span></label>
-              <select name="moneda_cod" class="form-select" required>
-                <option value="">— Seleccioná —</option>
-                {% for m in monedas %}
-                  <option value="{{ m.cod }}">{{ m.nombre }} ({{ m.signo }})</option>
-                {% endfor %}
-              </select>
-            </div>
-          </div>
-
-          <div class="row g-3 mb-3">
-            <div class="col-sm-7">
-              <label class="form-label fw-semibold">Concepto <span class="text-danger">*</span></label>
-              <select name="concepto_cod" class="form-select" required>
-                <option value="">— Seleccioná —</option>
-                {% for c in conceptos %}
-                  <option value="{{ c.cod }}">[{{ c.tipo | capitalize }}] {{ c.nombre }}</option>
-                {% endfor %}
-              </select>
-            </div>
-            <div class="col-sm-5">
-              <label class="form-label fw-semibold">Importe <span class="text-danger">*</span></label>
-              <div class="input-group">
-                <span class="input-group-text">$</span>
-                <input type="number" name="importe" class="form-control"
-                       placeholder="0.00" step="0.01" min="0.01" required>
+            {% if not propiedades %}
+              <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                No hay propiedades cargadas.
+                <a href="{{ url_for('configuracion') }}#propiedades" class="alert-link">Agregar propiedad</a>
               </div>
-              <small class="text-muted">Siempre positivo. El tipo (ingreso/egreso) lo determina el concepto.</small>
-            </div>
-          </div>
+            {% elif not conceptos %}
+              <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                No hay conceptos cargados.
+                <a href="{{ url_for('configuracion') }}#conceptos" class="alert-link">Agregar concepto</a>
+              </div>
+            {% elif not monedas %}
+              <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                No hay monedas cargadas.
+                <a href="{{ url_for('configuracion') }}#monedas" class="alert-link">Agregar moneda</a>
+              </div>
+            {% else %}
+            <form method="POST" action="{{ url_for('carga') }}">
 
-          <div class="mb-4">
-            <label class="form-label fw-semibold">Observaciones</label>
-            <input type="text" name="observaciones" class="form-control"
-                   placeholder="Texto libre (máx. 50 caracteres)" maxlength="50">
-          </div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Propiedad <span class="text-danger">*</span></label>
+                <select name="propiedad_cod" class="form-select" required>
+                  <option value="">— Seleccioná —</option>
+                  {% for p in propiedades %}
+                    <option value="{{ p.cod }}">{{ p.direccion }}</option>
+                  {% endfor %}
+                </select>
+              </div>
 
-          <div class="d-grid">
-            <button type="submit" class="btn btn-lg"
-                    style="background:var(--navy); color:#fff; font-weight:600;">
-              <i class="bi bi-save2-fill me-2"></i>Guardar Transacción
-            </button>
-          </div>
+              <div class="row g-3 mb-3">
+                <div class="col-sm-6">
+                  <label class="form-label fw-semibold">Fecha <span class="text-danger">*</span></label>
+                  <input type="date" name="fecha" class="form-control" value="{{ hoy }}" required>
+                </div>
+                <div class="col-sm-6">
+                  <label class="form-label fw-semibold">Moneda <span class="text-danger">*</span></label>
+                  <select name="moneda_cod" class="form-select" required>
+                    <option value="">— Seleccioná —</option>
+                    {% for m in monedas %}
+                      <option value="{{ m.cod }}">{{ m.nombre }} ({{ m.signo }})</option>
+                    {% endfor %}
+                  </select>
+                </div>
+              </div>
 
-        </form>
-        {% endif %}
+              <div class="row g-3 mb-3">
+                <div class="col-sm-7">
+                  <label class="form-label fw-semibold">Concepto <span class="text-danger">*</span></label>
+                  <select name="concepto_cod" class="form-select" required>
+                    <option value="">— Seleccioná —</option>
+                    {% for c in conceptos %}
+                      <option value="{{ c.cod }}">[{{ c.tipo | capitalize }}] {{ c.nombre }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-sm-5">
+                  <label class="form-label fw-semibold">Importe <span class="text-danger">*</span></label>
+                  <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input type="number" name="importe" class="form-control"
+                           placeholder="0.00" step="0.01" min="0.01" required>
+                  </div>
+                  <small class="text-muted">Siempre positivo. El tipo lo determina el concepto.</small>
+                </div>
+              </div>
+
+              <div class="mb-4">
+                <label class="form-label fw-semibold">Observaciones</label>
+                <input type="text" name="observaciones" class="form-control"
+                       placeholder="Texto libre (máx. 50 caracteres)" maxlength="50">
+              </div>
+
+              <div class="d-grid">
+                <button type="submit" class="btn btn-lg"
+                        style="background:var(--navy); color:#fff; font-weight:600;">
+                  <i class="bi bi-save2-fill me-2"></i>Guardar Transacción
+                </button>
+              </div>
+
+            </form>
+            {% endif %}
+          </div>
+        </div>
       </div>
     </div>
   </div>
-</div>
+
+  <!-- ── TAB: Carga masiva ──────────────────────────────── -->
+  <div class="tab-pane fade" id="masiva" role="tabpanel">
+    <div class="row justify-content-center">
+      <div class="col-lg-7">
+        <div class="card mb-4">
+          <div class="card-header-custom">
+            <i class="bi bi-file-earmark-spreadsheet-fill me-2"></i>Importar desde Excel o CSV
+          </div>
+          <div class="card-body p-4">
+
+            <div class="alert alert-info mb-4">
+              <p class="mb-1 fw-semibold"><i class="bi bi-info-circle me-1"></i>Columnas requeridas en el archivo:</p>
+              <code>fecha &nbsp;·&nbsp; propiedad_cod &nbsp;·&nbsp; concepto_cod &nbsp;·&nbsp; importe &nbsp;·&nbsp; moneda_cod &nbsp;·&nbsp; observaciones</code>
+              <hr class="my-2">
+              <small>
+                Los códigos deben coincidir con los registros existentes en sus respectivas tablas.<br>
+                Formatos de fecha aceptados: <code>YYYY-MM-DD</code>, <code>DD/MM/YYYY</code>, <code>DD-MM-YYYY</code>
+              </small>
+              <div class="mt-2">
+                <a href="{{ url_for('carga_template') }}" class="btn btn-sm btn-outline-primary">
+                  <i class="bi bi-download me-1"></i>Descargar plantilla CSV de ejemplo
+                </a>
+              </div>
+            </div>
+
+            <form method="POST" action="{{ url_for('carga_upload') }}" enctype="multipart/form-data">
+              <div class="mb-4">
+                <label class="form-label fw-semibold">Seleccioná el archivo <span class="text-danger">*</span></label>
+                <input type="file" name="archivo" class="form-control form-control-lg"
+                       accept=".csv,.xlsx,.xls" required>
+                <div class="form-text">Formatos aceptados: CSV (.csv), Excel (.xlsx, .xls)</div>
+              </div>
+
+              <div class="alert alert-secondary" style="font-size:.85rem;">
+                <strong>Validaciones que se realizan:</strong>
+                <ol class="mb-0 mt-1">
+                  <li>Estructura del archivo (columnas requeridas)</li>
+                  <li>Validez de códigos vinculados (propiedad, concepto, moneda)</li>
+                  <li>Campos requeridos no vacíos</li>
+                  <li>Ausencia de registros duplicados (en el archivo y en la BD)</li>
+                </ol>
+              </div>
+
+              <div class="d-grid mt-3">
+                <button type="submit" class="btn btn-lg"
+                        style="background:var(--navy); color:#fff; font-weight:600;">
+                  <i class="bi bi-cloud-upload-fill me-2"></i>Subir y Validar
+                </button>
+              </div>
+            </form>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /tab-content -->
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Mantener tab activo si viene de un redirect con hash
+  const hash = window.location.hash;
+  if (hash) {
+    const tab = document.querySelector(`[href="${hash}"]`);
+    if (tab) new bootstrap.Tab(tab).show();
+  }
+</script>
 {% endblock %}
