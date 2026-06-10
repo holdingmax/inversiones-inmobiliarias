@@ -57,8 +57,7 @@ class Propiedad(db.Model):
     fecha_compra = db.Column(db.Date)
     imagen = db.Column(db.LargeBinary)
     imagen_tipo = db.Column(db.String(50))
-    transacciones = db.relationship('Transaccion', backref='propiedad',
-                                    lazy=True, cascade='all, delete-orphan')
+    transacciones = db.relationship('Transaccion', backref='propiedad', lazy=True)
 
 
 class Concepto(db.Model):
@@ -280,17 +279,49 @@ def config_propiedad_add():
     return redirect(url_for('configuracion') + '#propiedades')
 
 
+@app.route('/config/propiedad/edit/<int:cod>', methods=['POST'])
+@login_required
+def config_propiedad_edit(cod):
+    p = db.session.get(Propiedad, cod)
+    if not p:
+        flash('Propiedad no encontrada.', 'warning')
+        return redirect(url_for('configuracion') + '#propiedades')
+    try:
+        p.direccion = request.form['direccion'].strip()[:50]
+        p.disponible = request.form.get('disponible') == 'on'
+        costo_str = request.form.get('costo_compra', '').strip()
+        p.costo_compra = Decimal(costo_str) if costo_str else None
+        fecha_str = request.form.get('fecha_compra', '').strip()
+        p.fecha_compra = datetime.strptime(fecha_str, '%Y-%m-%d').date() if fecha_str else None
+        if 'imagen' in request.files:
+            f = request.files['imagen']
+            if f and f.filename:
+                p.imagen = f.read()
+                p.imagen_tipo = f.content_type
+        db.session.commit()
+        flash('Propiedad actualizada correctamente.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error al actualizar: {e}', 'danger')
+    return redirect(url_for('configuracion') + '#propiedades')
+
+
 @app.route('/config/propiedad/delete/<int:cod>', methods=['POST'])
 @login_required
 def config_propiedad_delete(cod):
     p = db.session.get(Propiedad, cod)
     if not p:
         flash('Propiedad no encontrada.', 'warning')
-        return redirect(url_for('configuracion'))
+        return redirect(url_for('configuracion') + '#propiedades')
+    count = Transaccion.query.filter_by(propiedad_cod=cod).count()
+    if count:
+        flash(f'No se puede eliminar: la propiedad tiene {count} transacción/es asociada/s. '
+              f'Eliminá primero esas transacciones.', 'danger')
+        return redirect(url_for('configuracion') + '#propiedades')
     try:
         db.session.delete(p)
         db.session.commit()
-        flash('Propiedad eliminada.', 'success')
+        flash('Propiedad eliminada correctamente.', 'success')
     except Exception as e:
         db.session.rollback()
         flash(f'Error: {e}', 'danger')
@@ -315,17 +346,40 @@ def config_concepto_add():
     return redirect(url_for('configuracion') + '#conceptos')
 
 
+@app.route('/config/concepto/edit/<int:cod>', methods=['POST'])
+@login_required
+def config_concepto_edit(cod):
+    c = db.session.get(Concepto, cod)
+    if not c:
+        flash('Concepto no encontrado.', 'warning')
+        return redirect(url_for('configuracion') + '#conceptos')
+    try:
+        c.nombre = request.form['nombre'].strip()[:30]
+        c.tipo = request.form['tipo']
+        db.session.commit()
+        flash('Concepto actualizado correctamente.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error al actualizar: {e}', 'danger')
+    return redirect(url_for('configuracion') + '#conceptos')
+
+
 @app.route('/config/concepto/delete/<int:cod>', methods=['POST'])
 @login_required
 def config_concepto_delete(cod):
     c = db.session.get(Concepto, cod)
     if not c:
         flash('Concepto no encontrado.', 'warning')
-        return redirect(url_for('configuracion'))
+        return redirect(url_for('configuracion') + '#conceptos')
+    count = Transaccion.query.filter_by(concepto_cod=cod).count()
+    if count:
+        flash(f'No se puede eliminar: el concepto "{c.nombre}" está usado en {count} transacción/es. '
+              f'Modificá o eliminá esas transacciones primero.', 'danger')
+        return redirect(url_for('configuracion') + '#conceptos')
     try:
         db.session.delete(c)
         db.session.commit()
-        flash('Concepto eliminado.', 'success')
+        flash('Concepto eliminado correctamente.', 'success')
     except Exception as e:
         db.session.rollback()
         flash(f'Error: {e}', 'danger')
@@ -350,17 +404,40 @@ def config_moneda_add():
     return redirect(url_for('configuracion') + '#monedas')
 
 
+@app.route('/config/moneda/edit/<int:cod>', methods=['POST'])
+@login_required
+def config_moneda_edit(cod):
+    m = db.session.get(Moneda, cod)
+    if not m:
+        flash('Moneda no encontrada.', 'warning')
+        return redirect(url_for('configuracion') + '#monedas')
+    try:
+        m.nombre = request.form['nombre'].strip()[:30]
+        m.signo = request.form['signo'].strip()[:3]
+        db.session.commit()
+        flash('Moneda actualizada correctamente.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error al actualizar: {e}', 'danger')
+    return redirect(url_for('configuracion') + '#monedas')
+
+
 @app.route('/config/moneda/delete/<int:cod>', methods=['POST'])
 @login_required
 def config_moneda_delete(cod):
     m = db.session.get(Moneda, cod)
     if not m:
         flash('Moneda no encontrada.', 'warning')
-        return redirect(url_for('configuracion'))
+        return redirect(url_for('configuracion') + '#monedas')
+    count = Transaccion.query.filter_by(moneda_cod=cod).count()
+    if count:
+        flash(f'No se puede eliminar: la moneda "{m.nombre}" está usada en {count} transacción/es. '
+              f'Modificá o eliminá esas transacciones primero.', 'danger')
+        return redirect(url_for('configuracion') + '#monedas')
     try:
         db.session.delete(m)
         db.session.commit()
-        flash('Moneda eliminada.', 'success')
+        flash('Moneda eliminada correctamente.', 'success')
     except Exception as e:
         db.session.rollback()
         flash(f'Error: {e}', 'danger')
@@ -390,6 +467,27 @@ def config_usuario_add():
     return redirect(url_for('configuracion') + '#usuarios')
 
 
+@app.route('/config/usuario/edit/<int:cod>', methods=['POST'])
+@login_required
+def config_usuario_edit(cod):
+    u = db.session.get(Usuario, cod)
+    if not u:
+        flash('Usuario no encontrado.', 'warning')
+        return redirect(url_for('configuracion') + '#usuarios')
+    try:
+        nueva_pwd = request.form.get('password', '').strip()
+        if not nueva_pwd or len(nueva_pwd) < 6:
+            flash('La contraseña debe tener al menos 6 caracteres.', 'warning')
+            return redirect(url_for('configuracion') + '#usuarios')
+        u.password = generate_password_hash(nueva_pwd)
+        db.session.commit()
+        flash(f'Contraseña de "{u.nombre_usuario}" actualizada correctamente.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error al actualizar: {e}', 'danger')
+    return redirect(url_for('configuracion') + '#usuarios')
+
+
 @app.route('/config/usuario/delete/<int:cod>', methods=['POST'])
 @login_required
 def config_usuario_delete(cod):
@@ -399,11 +497,11 @@ def config_usuario_delete(cod):
     u = db.session.get(Usuario, cod)
     if not u:
         flash('Usuario no encontrado.', 'warning')
-        return redirect(url_for('configuracion'))
+        return redirect(url_for('configuracion') + '#usuarios')
     try:
         db.session.delete(u)
         db.session.commit()
-        flash('Usuario eliminado.', 'success')
+        flash('Usuario eliminado correctamente.', 'success')
     except Exception as e:
         db.session.rollback()
         flash(f'Error: {e}', 'danger')

@@ -7,22 +7,22 @@
 <!-- Tabs de navegación -->
 <ul class="nav nav-tabs mb-4" id="configTabs" role="tablist">
   <li class="nav-item">
-    <a class="nav-link active" id="tab-prop" data-bs-toggle="tab" href="#propiedades" role="tab">
+    <a class="nav-link active" data-bs-toggle="tab" href="#propiedades" role="tab">
       <i class="bi bi-house-fill me-1"></i>Propiedades
     </a>
   </li>
   <li class="nav-item">
-    <a class="nav-link" id="tab-conc" data-bs-toggle="tab" href="#conceptos" role="tab">
+    <a class="nav-link" data-bs-toggle="tab" href="#conceptos" role="tab">
       <i class="bi bi-tags-fill me-1"></i>Conceptos
     </a>
   </li>
   <li class="nav-item">
-    <a class="nav-link" id="tab-mon" data-bs-toggle="tab" href="#monedas" role="tab">
+    <a class="nav-link" data-bs-toggle="tab" href="#monedas" role="tab">
       <i class="bi bi-currency-exchange me-1"></i>Monedas
     </a>
   </li>
   <li class="nav-item">
-    <a class="nav-link" id="tab-usr" data-bs-toggle="tab" href="#usuarios" role="tab">
+    <a class="nav-link" data-bs-toggle="tab" href="#usuarios" role="tab">
       <i class="bi bi-people-fill me-1"></i>Usuarios
     </a>
   </li>
@@ -30,320 +30,691 @@
 
 <div class="tab-content">
 
-  <!-- ── PROPIEDADES ─────────────────────────────────────── -->
+  <!-- ══════════════════════════════════════════════════════
+       TAB: PROPIEDADES
+  ══════════════════════════════════════════════════════ -->
   <div class="tab-pane fade show active" id="propiedades" role="tabpanel">
-    <div class="row g-4">
 
-      <!-- Listado -->
-      <div class="col-lg-7">
-        <div class="card">
-          <div class="card-header-custom"><i class="bi bi-list-ul me-2"></i>Propiedades registradas</div>
-          <div class="card-body p-0">
-            {% if propiedades %}
-            <div class="table-responsive">
-              <table class="table table-hover mb-0">
-                <thead style="background:var(--light);">
-                  <tr>
-                    <th class="ps-3">#</th>
-                    <th>Dirección</th>
-                    <th>Estado</th>
-                    <th>Costo</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for p in propiedades %}
-                  <tr>
-                    <td class="ps-3 text-muted">{{ p.cod }}</td>
-                    <td>{{ p.direccion }}</td>
-                    <td>
-                      {% if p.disponible %}
-                        <span class="badge bg-success">Sí</span>
-                      {% else %}
-                        <span class="badge bg-secondary">No</span>
-                      {% endif %}
-                    </td>
-                    <td class="text-muted">
-                      {% if p.costo_compra %}$ {{ '{:,.0f}'.format(p.costo_compra) }}{% else %}—{% endif %}
-                    </td>
-                    <td class="text-end pe-3">
-                      <form method="POST" action="{{ url_for('config_propiedad_delete', cod=p.cod) }}"
-                            onsubmit="return confirm('¿Eliminar propiedad y todas sus transacciones?')">
-                        <button class="btn btn-sm btn-outline-danger">
-                          <i class="bi bi-trash3"></i>
-                        </button>
-                      </form>
-                    </td>
-                  </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-            {% else %}
-              <p class="text-muted text-center py-3">Sin propiedades registradas.</p>
-            {% endif %}
-          </div>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="mb-0 fw-semibold" style="color:var(--navy);">Propiedades registradas</h5>
+      <button class="btn btn-sm fw-semibold"
+              style="background:var(--navy);color:#fff;"
+              data-bs-toggle="modal" data-bs-target="#addPropModal">
+        <i class="bi bi-plus-lg me-1"></i>Agregar propiedad
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="card-body p-0">
+        {% if propiedades %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead style="background:var(--navy); color:#fff;">
+              <tr>
+                <th class="ps-3">#</th>
+                <th>Dirección</th>
+                <th>Disponible</th>
+                <th>Costo Compra</th>
+                <th>Fecha Compra</th>
+                <th class="text-center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in propiedades %}
+              <tr>
+                <td class="ps-3 text-muted">{{ p.cod }}</td>
+                <td class="fw-semibold">{{ p.direccion }}</td>
+                <td>
+                  {% if p.disponible %}
+                    <span class="badge bg-success">Sí</span>
+                  {% else %}
+                    <span class="badge bg-secondary">No</span>
+                  {% endif %}
+                </td>
+                <td>{% if p.costo_compra %}$ {{ '{:,.2f}'.format(p.costo_compra) }}{% else %}—{% endif %}</td>
+                <td>{% if p.fecha_compra %}{{ p.fecha_compra.strftime('%d/%m/%Y') }}{% else %}—{% endif %}</td>
+                <td class="text-center">
+                  <button class="btn btn-sm btn-outline-primary me-1 btn-edit-prop"
+                    data-cod="{{ p.cod }}"
+                    data-direccion="{{ p.direccion }}"
+                    data-disponible="{{ 'true' if p.disponible else 'false' }}"
+                    data-costo="{{ p.costo_compra or '' }}"
+                    data-fecha="{{ p.fecha_compra.isoformat() if p.fecha_compra else '' }}"
+                    data-tiene-imagen="{{ 'true' if p.imagen else 'false' }}"
+                    data-bs-toggle="modal" data-bs-target="#editPropModal"
+                    title="Editar">
+                    <i class="bi bi-pencil-fill"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline-danger btn-confirmar-delete"
+                    data-url="{{ url_for('config_propiedad_delete', cod=p.cod) }}"
+                    data-desc="Propiedad: {{ p.direccion }}"
+                    title="Eliminar">
+                    <i class="bi bi-trash3-fill"></i>
+                  </button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
+        {% else %}
+          <p class="text-muted text-center py-4">Sin propiedades registradas. Agregá la primera.</p>
+        {% endif %}
       </div>
-
-      <!-- Formulario agregar -->
-      <div class="col-lg-5">
-        <div class="card">
-          <div class="card-header-custom"><i class="bi bi-plus-lg me-2"></i>Agregar propiedad</div>
-          <div class="card-body">
-            <form method="POST" action="{{ url_for('config_propiedad_add') }}" enctype="multipart/form-data">
-              <div class="mb-3">
-                <label class="form-label fw-semibold">Dirección <span class="text-danger">*</span></label>
-                <input type="text" name="direccion" class="form-control"
-                       placeholder="Ej: Av. Corrientes 1234" maxlength="50" required>
-              </div>
-              <div class="mb-3">
-                <div class="form-check form-switch">
-                  <input class="form-check-input" type="checkbox" name="disponible"
-                         id="disponible" checked>
-                  <label class="form-check-label" for="disponible">Disponible</label>
-                </div>
-              </div>
-              <div class="mb-3">
-                <label class="form-label fw-semibold">Costo de Compra</label>
-                <div class="input-group">
-                  <span class="input-group-text">$</span>
-                  <input type="number" name="costo_compra" class="form-control"
-                         placeholder="0.00" step="0.01" min="0">
-                </div>
-              </div>
-              <div class="mb-3">
-                <label class="form-label fw-semibold">Fecha de Compra</label>
-                <input type="date" name="fecha_compra" class="form-control">
-              </div>
-              <div class="mb-3">
-                <label class="form-label fw-semibold">Imagen</label>
-                <input type="file" name="imagen" class="form-control" accept="image/*">
-              </div>
-              <button type="submit" class="btn w-100" style="background:var(--navy);color:#fff;font-weight:600;">
-                <i class="bi bi-plus-circle me-1"></i>Agregar
-              </button>
-            </form>
-          </div>
-        </div>
-      </div>
-
     </div>
   </div>
 
-  <!-- ── CONCEPTOS ───────────────────────────────────────── -->
+  <!-- ══════════════════════════════════════════════════════
+       TAB: CONCEPTOS
+  ══════════════════════════════════════════════════════ -->
   <div class="tab-pane fade" id="conceptos" role="tabpanel">
-    <div class="row g-4">
-      <div class="col-lg-7">
-        <div class="card">
-          <div class="card-header-custom"><i class="bi bi-list-ul me-2"></i>Conceptos registrados</div>
-          <div class="card-body p-0">
-            {% if conceptos %}
-            <div class="table-responsive">
-              <table class="table table-hover mb-0">
-                <thead style="background:var(--light);">
-                  <tr>
-                    <th class="ps-3">#</th><th>Nombre</th><th>Tipo</th><th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for c in conceptos %}
-                  <tr>
-                    <td class="ps-3 text-muted">{{ c.cod }}</td>
-                    <td>{{ c.nombre }}</td>
-                    <td>
-                      {% if c.tipo == 'ingreso' %}
-                        <span class="badge bg-success">Ingreso</span>
-                      {% else %}
-                        <span class="badge bg-danger">Egreso</span>
-                      {% endif %}
-                    </td>
-                    <td class="text-end pe-3">
-                      <form method="POST" action="{{ url_for('config_concepto_delete', cod=c.cod) }}"
-                            onsubmit="return confirm('¿Eliminar concepto?')">
-                        <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash3"></i></button>
-                      </form>
-                    </td>
-                  </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-            {% else %}
-              <p class="text-muted text-center py-3">Sin conceptos registrados.</p>
-            {% endif %}
-          </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="mb-0 fw-semibold" style="color:var(--navy);">Conceptos registrados</h5>
+      <button class="btn btn-sm fw-semibold"
+              style="background:var(--navy);color:#fff;"
+              data-bs-toggle="modal" data-bs-target="#addConcModal">
+        <i class="bi bi-plus-lg me-1"></i>Agregar concepto
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="card-body p-0">
+        {% if conceptos %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead style="background:var(--navy); color:#fff;">
+              <tr>
+                <th class="ps-3">#</th>
+                <th>Nombre</th>
+                <th>Tipo</th>
+                <th class="text-center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for c in conceptos %}
+              <tr>
+                <td class="ps-3 text-muted">{{ c.cod }}</td>
+                <td class="fw-semibold">{{ c.nombre }}</td>
+                <td>
+                  {% if c.tipo == 'ingreso' %}
+                    <span class="badge bg-success">Ingreso</span>
+                  {% else %}
+                    <span class="badge bg-danger">Egreso</span>
+                  {% endif %}
+                </td>
+                <td class="text-center">
+                  <button class="btn btn-sm btn-outline-primary me-1 btn-edit-conc"
+                    data-cod="{{ c.cod }}"
+                    data-nombre="{{ c.nombre }}"
+                    data-tipo="{{ c.tipo }}"
+                    data-bs-toggle="modal" data-bs-target="#editConcModal"
+                    title="Editar">
+                    <i class="bi bi-pencil-fill"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline-danger btn-confirmar-delete"
+                    data-url="{{ url_for('config_concepto_delete', cod=c.cod) }}"
+                    data-desc="Concepto: {{ c.nombre }}"
+                    title="Eliminar">
+                    <i class="bi bi-trash3-fill"></i>
+                  </button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
-      </div>
-      <div class="col-lg-5">
-        <div class="card">
-          <div class="card-header-custom"><i class="bi bi-plus-lg me-2"></i>Agregar concepto</div>
-          <div class="card-body">
-            <form method="POST" action="{{ url_for('config_concepto_add') }}">
-              <div class="mb-3">
-                <label class="form-label fw-semibold">Nombre <span class="text-danger">*</span></label>
-                <input type="text" name="nombre" class="form-control"
-                       placeholder="Ej: Alquiler cobrado" maxlength="30" required>
-              </div>
-              <div class="mb-3">
-                <label class="form-label fw-semibold">Tipo <span class="text-danger">*</span></label>
-                <select name="tipo" class="form-select" required>
-                  <option value="ingreso">Ingreso</option>
-                  <option value="egreso">Egreso</option>
-                </select>
-              </div>
-              <button type="submit" class="btn w-100" style="background:var(--navy);color:#fff;font-weight:600;">
-                <i class="bi bi-plus-circle me-1"></i>Agregar
-              </button>
-            </form>
-          </div>
-        </div>
+        {% else %}
+          <p class="text-muted text-center py-4">Sin conceptos registrados. Agregá el primero.</p>
+        {% endif %}
       </div>
     </div>
   </div>
 
-  <!-- ── MONEDAS ─────────────────────────────────────────── -->
+  <!-- ══════════════════════════════════════════════════════
+       TAB: MONEDAS
+  ══════════════════════════════════════════════════════ -->
   <div class="tab-pane fade" id="monedas" role="tabpanel">
-    <div class="row g-4">
-      <div class="col-lg-7">
-        <div class="card">
-          <div class="card-header-custom"><i class="bi bi-list-ul me-2"></i>Monedas registradas</div>
-          <div class="card-body p-0">
-            {% if monedas %}
-            <div class="table-responsive">
-              <table class="table table-hover mb-0">
-                <thead style="background:var(--light);">
-                  <tr>
-                    <th class="ps-3">#</th><th>Nombre</th><th>Signo</th><th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for m in monedas %}
-                  <tr>
-                    <td class="ps-3 text-muted">{{ m.cod }}</td>
-                    <td>{{ m.nombre }}</td>
-                    <td><strong>{{ m.signo }}</strong></td>
-                    <td class="text-end pe-3">
-                      <form method="POST" action="{{ url_for('config_moneda_delete', cod=m.cod) }}"
-                            onsubmit="return confirm('¿Eliminar moneda?')">
-                        <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash3"></i></button>
-                      </form>
-                    </td>
-                  </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-            {% else %}
-              <p class="text-muted text-center py-3">Sin monedas registradas.</p>
-            {% endif %}
-          </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="mb-0 fw-semibold" style="color:var(--navy);">Monedas registradas</h5>
+      <button class="btn btn-sm fw-semibold"
+              style="background:var(--navy);color:#fff;"
+              data-bs-toggle="modal" data-bs-target="#addMonModal">
+        <i class="bi bi-plus-lg me-1"></i>Agregar moneda
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="card-body p-0">
+        {% if monedas %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead style="background:var(--navy); color:#fff;">
+              <tr>
+                <th class="ps-3">#</th>
+                <th>Nombre</th>
+                <th>Signo</th>
+                <th class="text-center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for m in monedas %}
+              <tr>
+                <td class="ps-3 text-muted">{{ m.cod }}</td>
+                <td class="fw-semibold">{{ m.nombre }}</td>
+                <td><strong style="font-size:1.1rem;">{{ m.signo }}</strong></td>
+                <td class="text-center">
+                  <button class="btn btn-sm btn-outline-primary me-1 btn-edit-mon"
+                    data-cod="{{ m.cod }}"
+                    data-nombre="{{ m.nombre }}"
+                    data-signo="{{ m.signo }}"
+                    data-bs-toggle="modal" data-bs-target="#editMonModal"
+                    title="Editar">
+                    <i class="bi bi-pencil-fill"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline-danger btn-confirmar-delete"
+                    data-url="{{ url_for('config_moneda_delete', cod=m.cod) }}"
+                    data-desc="Moneda: {{ m.nombre }} ({{ m.signo }})"
+                    title="Eliminar">
+                    <i class="bi bi-trash3-fill"></i>
+                  </button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
-      </div>
-      <div class="col-lg-5">
-        <div class="card">
-          <div class="card-header-custom"><i class="bi bi-plus-lg me-2"></i>Agregar moneda</div>
-          <div class="card-body">
-            <form method="POST" action="{{ url_for('config_moneda_add') }}">
-              <div class="mb-3">
-                <label class="form-label fw-semibold">Nombre <span class="text-danger">*</span></label>
-                <input type="text" name="nombre" class="form-control"
-                       placeholder="Ej: Euro" maxlength="30" required>
-              </div>
-              <div class="mb-3">
-                <label class="form-label fw-semibold">Signo <span class="text-danger">*</span></label>
-                <input type="text" name="signo" class="form-control"
-                       placeholder="Ej: €" maxlength="3" required>
-              </div>
-              <button type="submit" class="btn w-100" style="background:var(--navy);color:#fff;font-weight:600;">
-                <i class="bi bi-plus-circle me-1"></i>Agregar
-              </button>
-            </form>
-          </div>
-        </div>
+        {% else %}
+          <p class="text-muted text-center py-4">Sin monedas registradas. Agregá la primera.</p>
+        {% endif %}
       </div>
     </div>
   </div>
 
-  <!-- ── USUARIOS ────────────────────────────────────────── -->
+  <!-- ══════════════════════════════════════════════════════
+       TAB: USUARIOS
+  ══════════════════════════════════════════════════════ -->
   <div class="tab-pane fade" id="usuarios" role="tabpanel">
-    <div class="row g-4">
-      <div class="col-lg-7">
-        <div class="card">
-          <div class="card-header-custom"><i class="bi bi-list-ul me-2"></i>Usuarios registrados</div>
-          <div class="card-body p-0">
-            {% if usuarios %}
-            <div class="table-responsive">
-              <table class="table table-hover mb-0">
-                <thead style="background:var(--light);">
-                  <tr>
-                    <th class="ps-3">#</th><th>Usuario</th><th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for u in usuarios %}
-                  <tr>
-                    <td class="ps-3 text-muted">{{ u.cod }}</td>
-                    <td>
-                      {{ u.nombre_usuario }}
-                      {% if u.cod == session.usuario_id %}
-                        <span class="badge bg-primary ms-1">Vos</span>
-                      {% endif %}
-                    </td>
-                    <td class="text-end pe-3">
-                      {% if u.cod != session.usuario_id %}
-                      <form method="POST" action="{{ url_for('config_usuario_delete', cod=u.cod) }}"
-                            onsubmit="return confirm('¿Eliminar usuario?')">
-                        <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash3"></i></button>
-                      </form>
-                      {% endif %}
-                    </td>
-                  </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-            {% else %}
-              <p class="text-muted text-center py-3">Sin usuarios registrados.</p>
-            {% endif %}
-          </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="mb-0 fw-semibold" style="color:var(--navy);">Usuarios registrados</h5>
+      <button class="btn btn-sm fw-semibold"
+              style="background:var(--navy);color:#fff;"
+              data-bs-toggle="modal" data-bs-target="#addUsrModal">
+        <i class="bi bi-plus-lg me-1"></i>Agregar usuario
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="card-body p-0">
+        {% if usuarios %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead style="background:var(--navy); color:#fff;">
+              <tr>
+                <th class="ps-3">#</th>
+                <th>Usuario</th>
+                <th class="text-center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for u in usuarios %}
+              <tr>
+                <td class="ps-3 text-muted">{{ u.cod }}</td>
+                <td>
+                  <span class="fw-semibold">{{ u.nombre_usuario }}</span>
+                  {% if u.cod == session.usuario_id %}
+                    <span class="badge bg-primary ms-2">Sesión activa</span>
+                  {% endif %}
+                </td>
+                <td class="text-center">
+                  <button class="btn btn-sm btn-outline-primary me-1 btn-edit-usr"
+                    data-cod="{{ u.cod }}"
+                    data-nombre="{{ u.nombre_usuario }}"
+                    data-bs-toggle="modal" data-bs-target="#editUsrModal"
+                    title="Cambiar contraseña">
+                    <i class="bi bi-key-fill"></i>
+                  </button>
+                  {% if u.cod != session.usuario_id %}
+                  <button class="btn btn-sm btn-outline-danger btn-confirmar-delete"
+                    data-url="{{ url_for('config_usuario_delete', cod=u.cod) }}"
+                    data-desc="Usuario: {{ u.nombre_usuario }}"
+                    title="Eliminar">
+                    <i class="bi bi-trash3-fill"></i>
+                  </button>
+                  {% else %}
+                  <button class="btn btn-sm btn-outline-secondary" disabled title="No podés eliminar tu propio usuario">
+                    <i class="bi bi-trash3-fill"></i>
+                  </button>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
-      </div>
-      <div class="col-lg-5">
-        <div class="card">
-          <div class="card-header-custom"><i class="bi bi-plus-lg me-2"></i>Agregar usuario</div>
-          <div class="card-body">
-            <form method="POST" action="{{ url_for('config_usuario_add') }}">
-              <div class="mb-3">
-                <label class="form-label fw-semibold">Usuario <span class="text-danger">*</span></label>
-                <input type="text" name="nombre_usuario" class="form-control"
-                       placeholder="Sin espacios, máx. 30 caracteres" maxlength="30" required>
-              </div>
-              <div class="mb-3">
-                <label class="form-label fw-semibold">Contraseña <span class="text-danger">*</span></label>
-                <input type="password" name="password" class="form-control"
-                       placeholder="Contraseña" required minlength="6">
-              </div>
-              <button type="submit" class="btn w-100" style="background:var(--navy);color:#fff;font-weight:600;">
-                <i class="bi bi-plus-circle me-1"></i>Agregar
-              </button>
-            </form>
-          </div>
-        </div>
+        {% else %}
+          <p class="text-muted text-center py-4">Sin usuarios registrados.</p>
+        {% endif %}
       </div>
     </div>
   </div>
 
 </div><!-- /tab-content -->
+
+
+<!-- ════════════════════════════════════════════════════════
+     MODALES — AGREGAR
+════════════════════════════════════════════════════════ -->
+
+<!-- Agregar Propiedad -->
+<div class="modal fade" id="addPropModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--navy);color:#fff;">
+        <h5 class="modal-title"><i class="bi bi-house-fill me-2"></i>Agregar Propiedad</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{{ url_for('config_propiedad_add') }}" enctype="multipart/form-data">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Dirección <span class="text-danger">*</span></label>
+            <input type="text" name="direccion" class="form-control" maxlength="50" required
+                   placeholder="Ej: Av. Corrientes 1234, CABA">
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-sm-6">
+              <label class="form-label fw-semibold">Costo de Compra</label>
+              <div class="input-group">
+                <span class="input-group-text">$</span>
+                <input type="number" name="costo_compra" class="form-control" step="0.01" min="0" placeholder="0.00">
+              </div>
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label fw-semibold">Fecha de Compra</label>
+              <input type="date" name="fecha_compra" class="form-control">
+            </div>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-sm-6">
+              <div class="form-check form-switch mt-2">
+                <input class="form-check-input" type="checkbox" name="disponible" id="addPropDisp" checked>
+                <label class="form-check-label fw-semibold" for="addPropDisp">Disponible</label>
+              </div>
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label fw-semibold">Imagen</label>
+              <input type="file" name="imagen" class="form-control" accept="image/*">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn fw-semibold px-4" style="background:var(--navy);color:#fff;">
+            <i class="bi bi-save2-fill me-1"></i>Guardar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Agregar Concepto -->
+<div class="modal fade" id="addConcModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--navy);color:#fff;">
+        <h5 class="modal-title"><i class="bi bi-tags-fill me-2"></i>Agregar Concepto</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{{ url_for('config_concepto_add') }}">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Nombre <span class="text-danger">*</span></label>
+            <input type="text" name="nombre" class="form-control" maxlength="30" required
+                   placeholder="Ej: Alquiler cobrado">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Tipo <span class="text-danger">*</span></label>
+            <select name="tipo" class="form-select" required>
+              <option value="ingreso">Ingreso</option>
+              <option value="egreso">Egreso</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn fw-semibold px-4" style="background:var(--navy);color:#fff;">
+            <i class="bi bi-save2-fill me-1"></i>Guardar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Agregar Moneda -->
+<div class="modal fade" id="addMonModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--navy);color:#fff;">
+        <h5 class="modal-title"><i class="bi bi-currency-exchange me-2"></i>Agregar Moneda</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{{ url_for('config_moneda_add') }}">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Nombre <span class="text-danger">*</span></label>
+            <input type="text" name="nombre" class="form-control" maxlength="30" required
+                   placeholder="Ej: Dólar Estadounidense">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Signo <span class="text-danger">*</span></label>
+            <input type="text" name="signo" class="form-control" maxlength="3" required
+                   placeholder="Ej: USD">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn fw-semibold px-4" style="background:var(--navy);color:#fff;">
+            <i class="bi bi-save2-fill me-1"></i>Guardar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Agregar Usuario -->
+<div class="modal fade" id="addUsrModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--navy);color:#fff;">
+        <h5 class="modal-title"><i class="bi bi-person-plus-fill me-2"></i>Agregar Usuario</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{{ url_for('config_usuario_add') }}">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Usuario <span class="text-danger">*</span></label>
+            <input type="text" name="nombre_usuario" class="form-control" maxlength="30" required
+                   placeholder="Sin espacios, máx. 30 caracteres">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Contraseña <span class="text-danger">*</span></label>
+            <input type="password" name="password" class="form-control" minlength="6" required
+                   placeholder="Mínimo 6 caracteres">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn fw-semibold px-4" style="background:var(--navy);color:#fff;">
+            <i class="bi bi-save2-fill me-1"></i>Guardar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     MODALES — EDITAR
+════════════════════════════════════════════════════════ -->
+
+<!-- Editar Propiedad -->
+<div class="modal fade" id="editPropModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--gold);color:var(--navy);">
+        <h5 class="modal-title fw-bold"><i class="bi bi-pencil-fill me-2"></i>Editar Propiedad</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" id="editPropForm" action="" enctype="multipart/form-data">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Dirección <span class="text-danger">*</span></label>
+            <input type="text" name="direccion" id="editPropDireccion" class="form-control"
+                   maxlength="50" required>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-sm-6">
+              <label class="form-label fw-semibold">Costo de Compra</label>
+              <div class="input-group">
+                <span class="input-group-text">$</span>
+                <input type="number" name="costo_compra" id="editPropCosto"
+                       class="form-control" step="0.01" min="0">
+              </div>
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label fw-semibold">Fecha de Compra</label>
+              <input type="date" name="fecha_compra" id="editPropFecha" class="form-control">
+            </div>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-sm-6">
+              <div class="form-check form-switch mt-2">
+                <input class="form-check-input" type="checkbox" name="disponible" id="editPropDisp">
+                <label class="form-check-label fw-semibold" for="editPropDisp">Disponible</label>
+              </div>
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label fw-semibold">Nueva imagen (opcional)</label>
+              <input type="file" name="imagen" class="form-control" accept="image/*">
+              <small id="editPropImgNote" class="text-muted"></small>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn fw-semibold px-4" style="background:var(--navy);color:#fff;">
+            <i class="bi bi-save2-fill me-1"></i>Guardar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Editar Concepto -->
+<div class="modal fade" id="editConcModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--gold);color:var(--navy);">
+        <h5 class="modal-title fw-bold"><i class="bi bi-pencil-fill me-2"></i>Editar Concepto</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" id="editConcForm" action="">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Nombre <span class="text-danger">*</span></label>
+            <input type="text" name="nombre" id="editConcNombre" class="form-control"
+                   maxlength="30" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Tipo <span class="text-danger">*</span></label>
+            <select name="tipo" id="editConcTipo" class="form-select" required>
+              <option value="ingreso">Ingreso</option>
+              <option value="egreso">Egreso</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn fw-semibold px-4" style="background:var(--navy);color:#fff;">
+            <i class="bi bi-save2-fill me-1"></i>Guardar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Editar Moneda -->
+<div class="modal fade" id="editMonModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--gold);color:var(--navy);">
+        <h5 class="modal-title fw-bold"><i class="bi bi-pencil-fill me-2"></i>Editar Moneda</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" id="editMonForm" action="">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Nombre <span class="text-danger">*</span></label>
+            <input type="text" name="nombre" id="editMonNombre" class="form-control"
+                   maxlength="30" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Signo <span class="text-danger">*</span></label>
+            <input type="text" name="signo" id="editMonSigno" class="form-control"
+                   maxlength="3" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn fw-semibold px-4" style="background:var(--navy);color:#fff;">
+            <i class="bi bi-save2-fill me-1"></i>Guardar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Editar Usuario (cambiar contraseña) -->
+<div class="modal fade" id="editUsrModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--gold);color:var(--navy);">
+        <h5 class="modal-title fw-bold"><i class="bi bi-key-fill me-2"></i>Cambiar Contraseña</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" id="editUsrForm" action="">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold text-muted">Usuario</label>
+            <p id="editUsrNombre" class="form-control-plaintext fw-bold fs-5" style="color:var(--navy);"></p>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Nueva contraseña <span class="text-danger">*</span></label>
+            <input type="password" name="password" class="form-control" minlength="6" required
+                   placeholder="Mínimo 6 caracteres">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn fw-semibold px-4" style="background:var(--navy);color:#fff;">
+            <i class="bi bi-save2-fill me-1"></i>Guardar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     MODAL — CONFIRMACIÓN DE ELIMINACIÓN
+════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="deleteModal" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:460px;">
+    <div class="modal-content border-0 shadow-lg" style="border-radius:16px; overflow:hidden;">
+      <div class="modal-header border-0" style="background:#dc3545; color:#fff; padding:1.25rem 1.5rem;">
+        <h5 class="modal-title fw-bold">
+          <i class="bi bi-exclamation-triangle-fill me-2"></i>Confirmación
+        </h5>
+      </div>
+      <div class="modal-body text-center py-4 px-4">
+        <i class="bi bi-trash3-fill" style="font-size:3.5rem; color:#dc3545;"></i>
+        <p class="fw-bold mt-3 mb-1" style="font-size:1.15rem; color:#212529;">
+          ¿ESTÁ SEGURO QUE DESEA<br>ELIMINAR ESTE REGISTRO?
+        </p>
+        <p class="text-muted mb-0" id="deleteModalDesc" style="font-size:.9rem;"></p>
+      </div>
+      <div class="modal-footer border-0 justify-content-center gap-4 pb-4">
+        <form id="deleteForm" method="POST">
+          <button type="submit" class="btn btn-lg fw-bold px-5"
+                  style="background:#198754; border-color:#198754; color:#fff;
+                         border-radius:10px; min-width:110px; font-size:1.1rem;">
+            <i class="bi bi-check-lg me-1"></i>SÍ
+          </button>
+        </form>
+        <button type="button" class="btn btn-lg fw-bold px-5" data-bs-dismiss="modal"
+                style="background:#dc3545; border-color:#dc3545; color:#fff;
+                       border-radius:10px; min-width:110px; font-size:1.1rem;">
+          <i class="bi bi-x-lg me-1"></i>NO
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
-  // Activar la tab correcta si viene desde un anchor en la URL
+  // ── Activar tab por hash de URL ───────────────────────
   const hash = window.location.hash;
   if (hash) {
     const tab = document.querySelector(`[href="${hash}"]`);
     if (tab) new bootstrap.Tab(tab).show();
   }
+
+  // ── Modal de confirmación de eliminación ─────────────
+  document.querySelectorAll('.btn-confirmar-delete').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.getElementById('deleteForm').action = btn.dataset.url;
+      document.getElementById('deleteModalDesc').textContent = btn.dataset.desc || '';
+      new bootstrap.Modal(document.getElementById('deleteModal')).show();
+    });
+  });
+
+  // ── Editar Propiedad ──────────────────────────────────
+  document.querySelectorAll('.btn-edit-prop').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const cod = btn.dataset.cod;
+      document.getElementById('editPropForm').action =
+        `/config/propiedad/edit/${cod}`;
+      document.getElementById('editPropDireccion').value = btn.dataset.direccion;
+      document.getElementById('editPropCosto').value     = btn.dataset.costo;
+      document.getElementById('editPropFecha').value     = btn.dataset.fecha;
+      document.getElementById('editPropDisp').checked    = btn.dataset.disponible === 'true';
+      document.getElementById('editPropImgNote').textContent =
+        btn.dataset.tieneImagen === 'true'
+          ? 'Ya tiene imagen. Dejá vacío para mantenerla.'
+          : 'Sin imagen actual.';
+    });
+  });
+
+  // ── Editar Concepto ───────────────────────────────────
+  document.querySelectorAll('.btn-edit-conc').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.getElementById('editConcForm').action =
+        `/config/concepto/edit/${btn.dataset.cod}`;
+      document.getElementById('editConcNombre').value = btn.dataset.nombre;
+      document.getElementById('editConcTipo').value   = btn.dataset.tipo;
+    });
+  });
+
+  // ── Editar Moneda ─────────────────────────────────────
+  document.querySelectorAll('.btn-edit-mon').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.getElementById('editMonForm').action =
+        `/config/moneda/edit/${btn.dataset.cod}`;
+      document.getElementById('editMonNombre').value = btn.dataset.nombre;
+      document.getElementById('editMonSigno').value  = btn.dataset.signo;
+    });
+  });
+
+  // ── Editar Usuario ────────────────────────────────────
+  document.querySelectorAll('.btn-edit-usr').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.getElementById('editUsrForm').action =
+        `/config/usuario/edit/${btn.dataset.cod}`;
+      document.getElementById('editUsrNombre').textContent = btn.dataset.nombre;
+    });
+  });
 </script>
 {% endblock %}
