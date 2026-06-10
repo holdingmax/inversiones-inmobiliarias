@@ -26,8 +26,9 @@ if not exist "venv\Scripts\python.exe" (
         pause
         exit /b 1
     )
-    echo [2/3] Instalando dependencias ^(puede tardar unos minutos^)...
-    venv\Scripts\pip install -r requirements.txt --quiet
+    echo [2/3] Instalando dependencias locales...
+    venv\Scripts\pip install --upgrade pip --quiet
+    venv\Scripts\pip install -r requirements-local.txt --quiet
     if errorlevel 1 (
         echo ERROR al instalar dependencias.
         pause
