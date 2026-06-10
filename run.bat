@@ -27,7 +27,7 @@ if not exist "venv\Scripts\python.exe" (
         exit /b 1
     )
     echo [2/3] Instalando dependencias ^(puede tardar unos minutos^)...
-    venv\Scripts\python.exe -m pip install -r requirements-local.txt
+    venv\Scripts\python.exe -m pip install --prefer-binary -r requirements-local.txt
     if errorlevel 1 (
         echo ERROR al instalar dependencias.
         pause
