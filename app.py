@@ -769,8 +769,8 @@ def init_db():
     # Usuario admin por defecto si no hay ninguno
     if not Usuario.query.first():
         admin = Usuario(
-            nombre_usuario='admin',
-            password=generate_password_hash('admin123')
+            nombre_usuario='ADMIN',
+            password=generate_password_hash('1234')
         )
         db.session.add(admin)
         # Datos iniciales de monedas
