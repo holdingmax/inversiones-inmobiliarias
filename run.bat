@@ -26,9 +26,8 @@ if not exist "venv\Scripts\python.exe" (
         pause
         exit /b 1
     )
-    echo [2/3] Instalando dependencias locales...
-    venv\Scripts\pip install --upgrade pip --quiet
-    venv\Scripts\pip install -r requirements-local.txt --quiet
+    echo [2/3] Instalando dependencias ^(puede tardar unos minutos^)...
+    venv\Scripts\python.exe -m pip install -r requirements-local.txt
     if errorlevel 1 (
         echo ERROR al instalar dependencias.
         pause
@@ -41,7 +40,7 @@ if not exist "venv\Scripts\python.exe" (
 
 REM ── 3. Cargar datos iniciales de propiedades ─────────
 echo [3/3] Verificando datos iniciales...
-venv\Scripts\python seed_propiedades.py
+venv\Scripts\python.exe seed_propiedades.py
 
 REM ── 4. Abrir navegador y arrancar servidor ───────────
 echo.
@@ -52,7 +51,7 @@ echo.
 
 start /min "" cmd /c "timeout /t 3 /nobreak > nul && start http://localhost:5000"
 
-venv\Scripts\python app.py
+venv\Scripts\python.exe app.py
 
 echo.
 echo Servidor detenido.
