@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% block title %}Carga de Información — Inversiones Inmobiliarias{% endblock %}
+
+{% block content %}
+<h3 class="section-title">Carga de Información</h3>
+
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header-custom">
+        <i class="bi bi-plus-circle-fill me-2"></i>Nueva Transacción
+      </div>
+      <div class="card-body p-4">
+
+        {% if not propiedades %}
+          <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            No hay propiedades cargadas.
+            <a href="{{ url_for('configuracion') }}#propiedades" class="alert-link">Agregar propiedad</a>
+          </div>
+        {% elif not conceptos %}
+          <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            No hay conceptos cargados.
+            <a href="{{ url_for('configuracion') }}#conceptos" class="alert-link">Agregar concepto</a>
+          </div>
+        {% elif not monedas %}
+          <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            No hay monedas cargadas.
+            <a href="{{ url_for('configuracion') }}#monedas" class="alert-link">Agregar moneda</a>
+          </div>
+        {% else %}
+        <form method="POST" action="{{ url_for('carga') }}">
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Propiedad <span class="text-danger">*</span></label>
+            <select name="propiedad_cod" class="form-select" required>
+              <option value="">— Seleccioná —</option>
+              {% for p in propiedades %}
+                <option value="{{ p.cod }}">{{ p.direccion }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-sm-6">
+              <label class="form-label fw-semibold">Fecha <span class="text-danger">*</span></label>
+              <input type="date" name="fecha" class="form-control" value="{{ hoy }}" required>
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label fw-semibold">Moneda <span class="text-danger">*</span></label>
+              <select name="moneda_cod" class="form-select" required>
+                <option value="">— Seleccioná —</option>
+                {% for m in monedas %}
+                  <option value="{{ m.cod }}">{{ m.nombre }} ({{ m.signo }})</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-sm-7">
+              <label class="form-label fw-semibold">Concepto <span class="text-danger">*</span></label>
+              <select name="concepto_cod" class="form-select" required>
+                <option value="">— Seleccioná —</option>
+                {% for c in conceptos %}
+                  <option value="{{ c.cod }}">[{{ c.tipo | capitalize }}] {{ c.nombre }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-sm-5">
+              <label class="form-label fw-semibold">Importe <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <span class="input-group-text">$</span>
+                <input type="number" name="importe" class="form-control"
+                       placeholder="0.00" step="0.01" min="0.01" required>
+              </div>
+              <small class="text-muted">Siempre positivo. El tipo (ingreso/egreso) lo determina el concepto.</small>
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Observaciones</label>
+            <input type="text" name="observaciones" class="form-control"
+                   placeholder="Texto libre (máx. 50 caracteres)" maxlength="50">
+          </div>
+
+          <div class="d-grid">
+            <button type="submit" class="btn btn-lg"
+                    style="background:var(--navy); color:#fff; font-weight:600;">
+              <i class="bi bi-save2-fill me-2"></i>Guardar Transacción
+            </button>
+          </div>
+
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

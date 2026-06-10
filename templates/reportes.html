@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+{% block title %}Reportes — Inversiones Inmobiliarias{% endblock %}
+
+{% block content %}
+<h3 class="section-title">Reportes</h3>
+
+{% if not resumen %}
+  <div class="alert alert-info">
+    <i class="bi bi-info-circle me-2"></i>No hay propiedades registradas aún.
+  </div>
+{% else %}
+
+<!-- Resumen general -->
+{% set total_ing = resumen | sum(attribute='ingresos') %}
+{% set total_eg  = resumen | sum(attribute='egresos') %}
+{% set total_net = total_ing - total_eg %}
+
+<div class="row g-3 mb-4">
+  <div class="col-sm-4">
+    <div class="resumen-box resumen-ingreso">
+      <div class="rs-label">Ingresos Totales</div>
+      <div class="rs-value ingreso">$ {{ '{:,.2f}'.format(total_ing) }}</div>
+    </div>
+  </div>
+  <div class="col-sm-4">
+    <div class="resumen-box resumen-egreso">
+      <div class="rs-label">Egresos Totales</div>
+      <div class="rs-value egreso">$ {{ '{:,.2f}'.format(total_eg) }}</div>
+    </div>
+  </div>
+  <div class="col-sm-4">
+    <div class="resumen-box resumen-neto">
+      <div class="rs-label">Resultado Neto Global</div>
+      <div class="rs-value {% if total_net >= 0 %}ingreso{% else %}egreso{% endif %}">
+        $ {{ '{:,.2f}'.format(total_net) }}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tabla por propiedad -->
+<div class="card">
+  <div class="card-header-custom">
+    <i class="bi bi-table me-2"></i>Resumen por Propiedad
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead style="background:var(--navy); color:#fff;">
+          <tr>
+            <th class="ps-3">#</th>
+            <th>Dirección</th>
+            <th>Estado</th>
+            <th class="text-end">Ingresos</th>
+            <th class="text-end">Egresos</th>
+            <th class="text-end">Neto</th>
+            <th class="text-end">Costo Compra</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in resumen %}
+          <tr>
+            <td class="ps-3 text-muted">{{ r.propiedad.cod }}</td>
+            <td>
+              <a href="{{ url_for('propiedad', cod=r.propiedad.cod) }}" class="text-decoration-none fw-semibold">
+                {{ r.propiedad.direccion }}
+              </a>
+            </td>
+            <td>
+              {% if r.propiedad.disponible %}
+                <span class="badge bg-success">Disponible</span>
+              {% else %}
+                <span class="badge bg-danger">No disponible</span>
+              {% endif %}
+            </td>
+            <td class="text-end ingreso">$ {{ '{:,.2f}'.format(r.ingresos) }}</td>
+            <td class="text-end egreso">$ {{ '{:,.2f}'.format(r.egresos) }}</td>
+            <td class="text-end fw-bold {% if r.neto >= 0 %}ingreso{% else %}egreso{% endif %}">
+              $ {{ '{:,.2f}'.format(r.neto) }}
+            </td>
+            <td class="text-end text-muted">
+              {% if r.propiedad.costo_compra %}
+                $ {{ '{:,.2f}'.format(r.propiedad.costo_compra) }}
+              {% else %}—{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="total-row">
+            <td colspan="3" class="ps-3">TOTALES</td>
+            <td class="text-end">$ {{ '{:,.2f}'.format(total_ing) }}</td>
+            <td class="text-end">$ {{ '{:,.2f}'.format(total_eg) }}</td>
+            <td class="text-end {% if total_net >= 0 %}text-success{% else %}text-danger{% endif %}">
+              $ {{ '{:,.2f}'.format(total_net) }}
+            </td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% endif %}
+{% endblock %}

@@ -1,0 +1,196 @@
+{% extends 'base.html' %}
+{% block title %}Propiedad — Inversiones Inmobiliarias{% endblock %}
+
+{% block content %}
+<h3 class="section-title">Propiedad</h3>
+
+<!-- Selector de propiedad -->
+<div class="card mb-4">
+  <div class="card-body">
+    <form method="GET" action="{{ url_for('propiedad') }}" class="row g-2 align-items-end">
+      <div class="col-md-8 col-lg-6">
+        <label class="form-label info-label">Seleccioná una propiedad</label>
+        <select name="cod" class="form-select" onchange="this.form.submit()">
+          <option value="">— Elegir propiedad —</option>
+          {% for p in propiedades %}
+            <option value="{{ p.cod }}" {% if cod_sel == p.cod %}selected{% endif %}>
+              {{ p.direccion }}{% if not p.disponible %} (No disponible){% endif %}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-sm" style="background:var(--navy);color:#fff;">
+          <i class="bi bi-search me-1"></i>Ver
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if prop_sel %}
+
+<!-- Datos de la propiedad -->
+<div class="card mb-4">
+  <div class="card-header-custom">
+    <i class="bi bi-house-fill me-2"></i>{{ prop_sel.direccion }}
+  </div>
+  <div class="card-body">
+    <div class="row g-4">
+      <!-- Imagen -->
+      <div class="col-md-5">
+        {% if prop_sel.imagen %}
+          <img src="{{ url_for('propiedad_imagen', cod=prop_sel.cod) }}"
+               alt="Foto de la propiedad" class="prop-img">
+        {% else %}
+          <div class="prop-no-img">
+            <i class="bi bi-image"></i>
+          </div>
+          <p class="text-muted text-center mt-2" style="font-size:.85rem;">Sin imagen cargada</p>
+        {% endif %}
+      </div>
+
+      <!-- Datos -->
+      <div class="col-md-7">
+        <div class="row g-3">
+          <div class="col-12">
+            <div class="info-label">Dirección</div>
+            <div class="info-value">{{ prop_sel.direccion }}</div>
+          </div>
+          <div class="col-sm-6">
+            <div class="info-label">Estado</div>
+            <div class="mt-1">
+              {% if prop_sel.disponible %}
+                <span class="badge badge-disponible fs-6">Disponible</span>
+              {% else %}
+                <span class="badge badge-nodisponible fs-6">No disponible</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="col-sm-6">
+            <div class="info-label">Costo de Compra</div>
+            <div class="info-value">
+              {% if prop_sel.costo_compra %}
+                $ {{ '{:,.2f}'.format(prop_sel.costo_compra) }}
+              {% else %}
+                —
+              {% endif %}
+            </div>
+          </div>
+          <div class="col-sm-6">
+            <div class="info-label">Fecha de Compra</div>
+            <div class="info-value">
+              {% if prop_sel.fecha_compra %}
+                {{ prop_sel.fecha_compra.strftime('%d/%m/%Y') }}
+              {% else %}
+                —
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Detalle de transacciones -->
+<h4 class="section-title mt-4">Detalle de Transacciones</h4>
+
+<!-- Resumen -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-4">
+    <div class="resumen-box resumen-ingreso">
+      <div class="rs-label">Total Ingresos</div>
+      <div class="rs-value ingreso">$ {{ '{:,.2f}'.format(total_ingresos) }}</div>
+    </div>
+  </div>
+  <div class="col-sm-4">
+    <div class="resumen-box resumen-egreso">
+      <div class="rs-label">Total Egresos</div>
+      <div class="rs-value egreso">$ {{ '{:,.2f}'.format(total_egresos) }}</div>
+    </div>
+  </div>
+  <div class="col-sm-4">
+    <div class="resumen-box resumen-neto">
+      <div class="rs-label">Resultado Neto</div>
+      <div class="rs-value {% if total_neto >= 0 %}ingreso{% else %}egreso{% endif %}">
+        $ {{ '{:,.2f}'.format(total_neto) }}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tabla de transacciones -->
+{% if transacciones %}
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead style="background:var(--navy); color:#fff;">
+          <tr>
+            <th class="ps-3">Fecha</th>
+            <th class="text-end">Importe</th>
+            <th>Tipo</th>
+            <th>Concepto</th>
+            <th>Moneda</th>
+            <th>Observaciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in transacciones %}
+          <tr>
+            <td class="ps-3">{{ t.fecha.strftime('%d/%m/%Y') }}</td>
+            <td class="text-end {% if t.concepto_rel.tipo == 'ingreso' %}ingreso{% else %}egreso{% endif %}">
+              {% if t.concepto_rel.tipo == 'ingreso' %}
+                + {{ '{:,.2f}'.format(t.importe) }}
+              {% else %}
+                − {{ '{:,.2f}'.format(t.importe) }}
+              {% endif %}
+            </td>
+            <td>
+              {% if t.concepto_rel.tipo == 'ingreso' %}
+                <span class="badge bg-success">Ingreso</span>
+              {% else %}
+                <span class="badge bg-danger">Egreso</span>
+              {% endif %}
+            </td>
+            <td>{{ t.concepto_rel.nombre }}</td>
+            <td>{{ t.moneda_rel.signo }}</td>
+            <td class="text-muted">{{ t.observaciones or '' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="total-row">
+            <td class="ps-3">TOTAL</td>
+            <td class="text-end {% if total_neto >= 0 %}text-success{% else %}text-danger{% endif %}">
+              $ {{ '{:,.2f}'.format(total_neto) }}
+            </td>
+            <td colspan="4"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="alert alert-info">
+  <i class="bi bi-info-circle me-2"></i>No hay transacciones registradas para esta propiedad.
+  <a href="{{ url_for('carga') }}" class="alert-link ms-1">Agregar transacción</a>
+</div>
+{% endif %}
+
+{% else %}
+<div class="text-center text-muted py-5">
+  <i class="bi bi-house" style="font-size:4rem; opacity:.3;"></i>
+  <p class="mt-3">Seleccioná una propiedad del menú para ver su información.</p>
+  {% if not propiedades %}
+    <a href="{{ url_for('configuracion') }}#propiedades" class="btn btn-sm"
+       style="background:var(--navy);color:#fff;">
+      <i class="bi bi-plus-circle me-1"></i>Agregar propiedad
+    </a>
+  {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

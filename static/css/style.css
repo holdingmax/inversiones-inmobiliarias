@@ -1,0 +1,196 @@
+/* ── Paleta ─────────────────────────────────────────────── */
+:root {
+  --navy:  #1a3a5c;
+  --gold:  #c9a227;
+  --gold2: #e6c35a;
+  --light: #f4f6f9;
+}
+
+/* ── Base ───────────────────────────────────────────────── */
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: var(--light);
+}
+
+/* ── Navbar ─────────────────────────────────────────────── */
+.navbar-custom {
+  background: var(--navy);
+  border-bottom: 3px solid var(--gold);
+}
+.navbar-custom .navbar-brand {
+  color: var(--gold);
+  font-weight: 700;
+  font-size: 1.3rem;
+  letter-spacing: .5px;
+}
+.navbar-custom .nav-link,
+.navbar-custom .navbar-text {
+  color: rgba(255,255,255,.85);
+}
+.navbar-custom .nav-link:hover { color: var(--gold2); }
+.navbar-custom .btn-outline-light {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+.navbar-custom .btn-outline-light:hover {
+  background: var(--gold);
+  color: var(--navy);
+}
+
+/* ── Login page ─────────────────────────────────────────── */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /*
+   * IMAGEN DE FONDO: reemplazá el gradiente por tu imagen así:
+   * background: url('/static/images/fondo.jpg') center/cover no-repeat;
+   */
+  background:
+    linear-gradient(135deg, rgba(26,58,92,.88) 0%, rgba(10,20,40,.75) 100%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='%231a3a5c'/%3E%3Cpath d='M0 50 L50 0 L100 50 L75 50 L75 100 L25 100 L25 50 Z' fill='%23c9a227' opacity='.15'/%3E%3C/svg%3E");
+}
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  background: rgba(255,255,255,.97);
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.4);
+  overflow: hidden;
+}
+.login-card .card-header {
+  background: var(--navy);
+  padding: 2rem 2rem 1.5rem;
+  text-align: center;
+}
+.login-card .card-header h2 {
+  color: var(--gold);
+  font-weight: 700;
+  margin: 0;
+}
+.login-card .card-header p {
+  color: rgba(255,255,255,.7);
+  margin: .25rem 0 0;
+  font-size: .9rem;
+}
+.login-card .card-body { padding: 2rem; }
+.btn-login {
+  background: var(--navy);
+  border-color: var(--navy);
+  color: #fff;
+  font-weight: 600;
+  letter-spacing: .5px;
+  padding: .6rem;
+}
+.btn-login:hover {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: var(--navy);
+}
+
+/* ── Dashboard cards ────────────────────────────────────── */
+.dash-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  height: 180px;
+  background: #fff;
+  border: 2px solid transparent;
+  border-radius: 16px;
+  text-decoration: none;
+  color: var(--navy);
+  font-weight: 700;
+  font-size: 1.15rem;
+  box-shadow: 0 4px 18px rgba(0,0,0,.08);
+  transition: all .25s ease;
+}
+.dash-card i {
+  font-size: 3rem;
+  color: var(--gold);
+  transition: transform .25s ease;
+}
+.dash-card:hover {
+  border-color: var(--gold);
+  box-shadow: 0 8px 30px rgba(201,162,39,.25);
+  color: var(--navy);
+  transform: translateY(-4px);
+}
+.dash-card:hover i { transform: scale(1.15); }
+
+/* ── Sección de propiedad ───────────────────────────────── */
+.prop-img {
+  width: 100%;
+  max-height: 320px;
+  object-fit: cover;
+  border-radius: 12px;
+  box-shadow: 0 4px 18px rgba(0,0,0,.15);
+}
+.prop-no-img {
+  width: 100%;
+  height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e9ecef;
+  border-radius: 12px;
+  color: #adb5bd;
+  font-size: 4rem;
+}
+.info-label {
+  font-size: .75rem;
+  text-transform: uppercase;
+  letter-spacing: .8px;
+  color: #6c757d;
+  font-weight: 600;
+}
+.info-value {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--navy);
+}
+.badge-disponible   { background: #198754; }
+.badge-nodisponible { background: #dc3545; }
+
+/* ── Tabla de transacciones ─────────────────────────────── */
+.ingreso { color: #198754; font-weight: 600; }
+.egreso  { color: #dc3545; font-weight: 600; }
+.total-row td {
+  font-weight: 700;
+  background: var(--navy);
+  color: #fff;
+  font-size: 1rem;
+}
+
+/* ── Section headers ────────────────────────────────────── */
+.section-title {
+  border-left: 4px solid var(--gold);
+  padding-left: .75rem;
+  color: var(--navy);
+  font-weight: 700;
+  margin-bottom: 1.25rem;
+}
+
+/* ── Cards genéricas ────────────────────────────────────── */
+.card { border: none; box-shadow: 0 2px 12px rgba(0,0,0,.07); border-radius: 12px; }
+.card-header-custom {
+  background: var(--navy);
+  color: #fff;
+  border-radius: 12px 12px 0 0 !important;
+  font-weight: 600;
+  padding: .75rem 1.25rem;
+}
+
+/* ── Resumen ingresos/egresos ───────────────────────────── */
+.resumen-box {
+  border-radius: 10px;
+  padding: 1rem 1.5rem;
+  text-align: center;
+}
+.resumen-ingreso { background: #d1e7dd; border: 1px solid #badbcc; }
+.resumen-egreso  { background: #f8d7da; border: 1px solid #f5c2c7; }
+.resumen-neto    { background: #cfe2ff; border: 1px solid #b6d4fe; }
+.resumen-box .rs-label { font-size: .8rem; text-transform: uppercase; font-weight: 600; color: #555; }
+.resumen-box .rs-value { font-size: 1.5rem; font-weight: 700; }

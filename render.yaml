@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: inversiones-inmobiliarias
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: inversiones-db
+          property: connectionString
+
+databases:
+  - name: inversiones-db
+    databaseName: inversiones
+    user: inversiones_user
+    plan: free
