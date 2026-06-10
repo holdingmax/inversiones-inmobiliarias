@@ -43,13 +43,9 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  /*
-   * IMAGEN DE FONDO: reemplazá el gradiente por tu imagen así:
-   * background: url('/static/images/fondo.jpg') center/cover no-repeat;
-   */
   background:
-    linear-gradient(135deg, rgba(26,58,92,.88) 0%, rgba(10,20,40,.75) 100%),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='%231a3a5c'/%3E%3Cpath d='M0 50 L50 0 L100 50 L75 50 L75 100 L25 100 L25 50 Z' fill='%23c9a227' opacity='.15'/%3E%3C/svg%3E");
+    linear-gradient(135deg, rgba(10,20,35,.55) 0%, rgba(26,58,92,.45) 100%),
+    url('/static/images/fondo.jpg') center/cover no-repeat;
 }
 .login-card {
   width: 100%;
