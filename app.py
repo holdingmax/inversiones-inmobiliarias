@@ -23,7 +23,7 @@ except ImportError:
 _pending_imports: dict = {}
 
 COLUMNAS_REQUERIDAS = {'fecha', 'propiedad_cod', 'concepto_cod', 'importe', 'moneda_cod'}
-FORMATOS_FECHA = ('%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y', '%Y/%m/%d')
+FORMATOS_FECHA = ('%d/%m/%Y',)  # Único formato aceptado: DD/MM/AAAA
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
@@ -611,7 +611,7 @@ def _validar_filas(filas_raw: list[dict]) -> list[dict]:
         # ── (c) Campos requeridos no vacíos ──────────────────────────────────
         if not categoria_error:
             if not fila.get('fecha', '').strip() or fecha is None:
-                errores.append('fecha inválida o vacía')
+                errores.append(f'fecha inválida o vacía (valor: "{fila.get("fecha","")}" — formato requerido: DD/MM/AAAA)')
                 categoria_error = 'c'
             if propiedad_cod is None:
                 errores.append('propiedad_cod vacío o inválido')
@@ -760,8 +760,8 @@ def carga_confirmar():
 @login_required
 def carga_template():
     contenido = ('fecha,propiedad_cod,concepto_cod,importe,moneda_cod,observaciones\n'
-                 '2024-01-15,1,1,15000.00,1,Ejemplo de observación\n'
-                 '2024-02-01,1,2,5000.00,1,Otro ejemplo\n')
+                 '15/01/2024,1,1,15000.00,1,Ejemplo de observacion\n'
+                 '01/02/2024,1,2,5000.00,1,Otro ejemplo\n')
     return Response(
         contenido,
         mimetype='text/csv',
