@@ -55,6 +55,7 @@
                 <th>Dirección</th>
                 <th>Disponible</th>
                 <th>Costo Compra</th>
+                <th>Moneda</th>
                 <th>Fecha Compra</th>
                 <th class="text-center">Acciones</th>
               </tr>
@@ -71,7 +72,8 @@
                     <span class="badge bg-secondary">No</span>
                   {% endif %}
                 </td>
-                <td>{% if p.costo_compra %}$ {{ '{:,.2f}'.format(p.costo_compra) }}{% else %}—{% endif %}</td>
+                <td>{% if p.costo_compra %}{{ '{:,.2f}'.format(p.costo_compra) }}{% else %}—{% endif %}</td>
+                <td>{% if p.moneda_rel %}{{ p.moneda_rel.signo }}{% else %}—{% endif %}</td>
                 <td>{% if p.fecha_compra %}{{ p.fecha_compra.strftime('%d/%m/%Y') }}{% else %}—{% endif %}</td>
                 <td class="text-center">
                   <button class="btn btn-sm btn-outline-primary me-1 btn-edit-prop"
@@ -79,6 +81,7 @@
                     data-direccion="{{ p.direccion }}"
                     data-disponible="{{ 'true' if p.disponible else 'false' }}"
                     data-costo="{{ p.costo_compra or '' }}"
+                    data-moneda="{{ p.moneda_cod or '' }}"
                     data-fecha="{{ p.fecha_compra.isoformat() if p.fecha_compra else '' }}"
                     data-tiene-imagen="{{ 'true' if p.imagen else 'false' }}"
                     data-bs-toggle="modal" data-bs-target="#editPropModal"
@@ -324,14 +327,20 @@
                    placeholder="Ej: Av. Corrientes 1234, CABA">
           </div>
           <div class="row g-3 mb-3">
-            <div class="col-sm-6">
+            <div class="col-sm-4">
               <label class="form-label fw-semibold">Costo de Compra</label>
-              <div class="input-group">
-                <span class="input-group-text">$</span>
-                <input type="number" name="costo_compra" class="form-control" step="0.01" min="0" placeholder="0.00">
-              </div>
+              <input type="number" name="costo_compra" class="form-control" step="0.01" min="0" placeholder="0.00">
             </div>
-            <div class="col-sm-6">
+            <div class="col-sm-4">
+              <label class="form-label fw-semibold">Moneda</label>
+              <select name="moneda_cod" class="form-select">
+                <option value="">— Seleccioná —</option>
+                {% for m in monedas %}
+                  <option value="{{ m.cod }}">{{ m.nombre }} ({{ m.signo }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-sm-4">
               <label class="form-label fw-semibold">Fecha de Compra</label>
               <input type="date" name="fecha_compra" class="form-control">
             </div>
@@ -479,15 +488,21 @@
                    maxlength="50" required>
           </div>
           <div class="row g-3 mb-3">
-            <div class="col-sm-6">
+            <div class="col-sm-4">
               <label class="form-label fw-semibold">Costo de Compra</label>
-              <div class="input-group">
-                <span class="input-group-text">$</span>
-                <input type="number" name="costo_compra" id="editPropCosto"
-                       class="form-control" step="0.01" min="0">
-              </div>
+              <input type="number" name="costo_compra" id="editPropCosto"
+                     class="form-control" step="0.01" min="0">
             </div>
-            <div class="col-sm-6">
+            <div class="col-sm-4">
+              <label class="form-label fw-semibold">Moneda</label>
+              <select name="moneda_cod" id="editPropMoneda" class="form-select">
+                <option value="">— Seleccioná —</option>
+                {% for m in monedas %}
+                  <option value="{{ m.cod }}">{{ m.nombre }} ({{ m.signo }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-sm-4">
               <label class="form-label fw-semibold">Fecha de Compra</label>
               <input type="date" name="fecha_compra" id="editPropFecha" class="form-control">
             </div>
@@ -681,6 +696,7 @@
       document.getElementById('editPropCosto').value     = btn.dataset.costo;
       document.getElementById('editPropFecha').value     = btn.dataset.fecha;
       document.getElementById('editPropDisp').checked    = btn.dataset.disponible === 'true';
+      document.getElementById('editPropMoneda').value    = btn.dataset.moneda || '';
       document.getElementById('editPropImgNote').textContent =
         btn.dataset.tieneImagen === 'true'
           ? 'Ya tiene imagen. Dejá vacío para mantenerla.'

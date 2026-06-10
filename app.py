@@ -10,6 +10,7 @@ from functools import wraps
 from flask import (Flask, render_template, request, redirect,
                    url_for, session, flash, Response)
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import text
 from werkzeug.security import generate_password_hash, check_password_hash
 
 try:
@@ -54,9 +55,11 @@ class Propiedad(db.Model):
     direccion = db.Column(db.String(50), nullable=False)
     disponible = db.Column(db.Boolean, default=True)
     costo_compra = db.Column(db.Numeric(15, 2))
+    moneda_cod = db.Column(db.Integer, db.ForeignKey('monedas.cod'))
     fecha_compra = db.Column(db.Date)
     imagen = db.Column(db.LargeBinary)
     imagen_tipo = db.Column(db.String(50))
+    moneda_rel = db.relationship('Moneda', foreign_keys=[moneda_cod])
     transacciones = db.relationship('Transaccion', backref='propiedad', lazy=True)
 
 
@@ -261,11 +264,13 @@ def config_propiedad_add():
 
         fecha_str = request.form.get('fecha_compra', '').strip()
         costo_str = request.form.get('costo_compra', '').strip()
+        moneda_str = request.form.get('moneda_cod', '').strip()
 
         p = Propiedad(
             direccion=request.form['direccion'].strip()[:50],
             disponible=request.form.get('disponible') == 'on',
             costo_compra=Decimal(costo_str) if costo_str else None,
+            moneda_cod=int(moneda_str) if moneda_str else None,
             fecha_compra=datetime.strptime(fecha_str, '%Y-%m-%d').date() if fecha_str else None,
             imagen=imagen_data,
             imagen_tipo=imagen_tipo
@@ -291,6 +296,8 @@ def config_propiedad_edit(cod):
         p.disponible = request.form.get('disponible') == 'on'
         costo_str = request.form.get('costo_compra', '').strip()
         p.costo_compra = Decimal(costo_str) if costo_str else None
+        moneda_str = request.form.get('moneda_cod', '').strip()
+        p.moneda_cod = int(moneda_str) if moneda_str else None
         fecha_str = request.form.get('fecha_compra', '').strip()
         p.fecha_compra = datetime.strptime(fecha_str, '%Y-%m-%d').date() if fecha_str else None
         if 'imagen' in request.files:
@@ -766,6 +773,13 @@ def carga_template():
 
 def init_db():
     db.create_all()
+    # Migración: agregar moneda_cod a propiedades si no existe (DBs pre-existentes)
+    try:
+        with db.engine.connect() as conn:
+            conn.execute(text('ALTER TABLE propiedades ADD COLUMN moneda_cod INTEGER REFERENCES monedas(cod)'))
+            conn.commit()
+    except Exception:
+        pass  # La columna ya existe
     # Usuario admin por defecto si no hay ninguno
     if not Usuario.query.first():
         admin = Usuario(

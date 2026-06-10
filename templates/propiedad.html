@@ -71,7 +71,8 @@
             <div class="info-label">Costo de Compra</div>
             <div class="info-value">
               {% if prop_sel.costo_compra %}
-                $ {{ '{:,.2f}'.format(prop_sel.costo_compra) }}
+                {% if prop_sel.moneda_rel %}{{ prop_sel.moneda_rel.signo }}{% else %}${% endif %}
+                {{ '{:,.2f}'.format(prop_sel.costo_compra) }}
               {% else %}
                 —
               {% endif %}
