@@ -268,7 +268,7 @@ def config_propiedad_add():
 
         p = Propiedad(
             direccion=request.form['direccion'].strip()[:50],
-            disponible=request.form.get('disponible') == 'on',
+            disponible=request.form.get('disponible') == '1',
             costo_compra=Decimal(costo_str) if costo_str else None,
             moneda_cod=int(moneda_str) if moneda_str else None,
             fecha_compra=datetime.strptime(fecha_str, '%Y-%m-%d').date() if fecha_str else None,
@@ -293,7 +293,7 @@ def config_propiedad_edit(cod):
         return redirect(url_for('configuracion') + '#propiedades')
     try:
         p.direccion = request.form['direccion'].strip()[:50]
-        p.disponible = request.form.get('disponible') == 'on'
+        p.disponible = request.form.get('disponible') == '1'
         costo_str = request.form.get('costo_compra', '').strip()
         p.costo_compra = Decimal(costo_str) if costo_str else None
         moneda_str = request.form.get('moneda_cod', '').strip()
