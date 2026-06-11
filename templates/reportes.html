@@ -4,103 +4,423 @@
 {% block content %}
 <h3 class="section-title">Reportes</h3>
 
-{% if not resumen %}
-  <div class="alert alert-info">
-    <i class="bi bi-info-circle me-2"></i>No hay propiedades registradas aún.
-  </div>
-{% else %}
+<!-- Tabs de reportes -->
+<ul class="nav nav-tabs mb-4" id="reporteTabs" role="tablist">
+  <li class="nav-item">
+    <a class="nav-link {% if tab != 'tir' %}active{% endif %}"
+       href="{{ url_for('reportes') }}?tab=ing_gast" role="tab">
+      <i class="bi bi-bar-chart-fill me-1"></i>Detalle de Ingresos y Gastos
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if tab == 'tir' %}active{% endif %}"
+       href="{{ url_for('reportes') }}?tab=tir" role="tab">
+      <i class="bi bi-graph-up-arrow me-1"></i>Archivo para Cálculo de TIR
+    </a>
+  </li>
+</ul>
 
-<!-- Resumen general -->
-{% set total_ing = resumen | sum(attribute='ingresos') %}
-{% set total_eg  = resumen | sum(attribute='egresos') %}
-{% set total_net = total_ing - total_eg %}
+<!-- ══════════════════════════════════════════════════════════
+     TAB 1: Detalle de Ingresos y Gastos
+     ══════════════════════════════════════════════════════════ -->
+{% if tab != 'tir' %}
 
-<div class="row g-3 mb-4">
-  <div class="col-sm-4">
-    <div class="resumen-box resumen-ingreso">
-      <div class="rs-label">Ingresos Totales</div>
-      <div class="rs-value ingreso">$ {{ '{:,.2f}'.format(total_ing) }}</div>
-    </div>
+<div class="card mb-4">
+  <div class="card-header-custom">
+    <i class="bi bi-funnel-fill me-2"></i>Filtros
   </div>
-  <div class="col-sm-4">
-    <div class="resumen-box resumen-egreso">
-      <div class="rs-label">Egresos Totales</div>
-      <div class="rs-value egreso">$ {{ '{:,.2f}'.format(total_eg) }}</div>
-    </div>
-  </div>
-  <div class="col-sm-4">
-    <div class="resumen-box resumen-neto">
-      <div class="rs-label">Resultado Neto Global</div>
-      <div class="rs-value {% if total_net >= 0 %}ingreso{% else %}egreso{% endif %}">
-        $ {{ '{:,.2f}'.format(total_net) }}
+  <div class="card-body p-4">
+    <form method="GET" action="{{ url_for('reportes') }}" class="row g-3 align-items-end" id="formReporte">
+      <input type="hidden" name="tab" value="ing_gast">
+
+      <div class="col-md-3">
+        <label class="form-label fw-semibold">Moneda <span class="text-danger">*</span></label>
+        <select name="moneda_cod" class="form-select" id="selMoneda">
+          <option value="">— Seleccioná —</option>
+          {% for m in monedas %}
+            <option value="{{ m.cod }}" {% if moneda_cod == m.cod %}selected{% endif %}>
+              {{ m.nombre }} ({{ m.signo }})
+            </option>
+          {% endfor %}
+        </select>
+        <div class="form-text">No se pueden mezclar monedas.</div>
       </div>
-    </div>
+
+      <div class="col-md-4 {% if not moneda_cod %}d-none{% endif %}" id="divPropiedad">
+        <label class="form-label fw-semibold">Propiedad</label>
+        <select name="propiedad_cod" class="form-select">
+          <option value="consolidado" {% if propiedad_arg == 'consolidado' %}selected{% endif %}>
+            Consolidado (todas las propiedades)
+          </option>
+          {% for p in propiedades_filtradas %}
+            <option value="{{ p.cod }}" {% if propiedad_arg == p.cod|string %}selected{% endif %}>
+              {{ p.direccion }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-md-2 {% if not moneda_cod %}d-none{% endif %}" id="divPeriodo">
+        <label class="form-label fw-semibold">Período</label>
+        <select name="periodo" class="form-select" id="selPeriodo">
+          <option value="resumen"       {% if periodo == 'resumen' %}selected{% endif %}>Resumen</option>
+          <option value="6meses"        {% if periodo == '6meses' %}selected{% endif %}>Últimos 6 meses</option>
+          <option value="cuatrimestral" {% if periodo == 'cuatrimestral' %}selected{% endif %}>Cuatrimestral</option>
+          <option value="trimestral"    {% if periodo == 'trimestral' %}selected{% endif %}>Trimestral</option>
+        </select>
+      </div>
+
+      <!-- Sub-selector cuatrimestral -->
+      <div class="col-md-auto {% if periodo != 'cuatrimestral' %}d-none{% endif %}" id="divSubCuatri">
+        <label class="form-label fw-semibold">Cuatrimestre</label>
+        <div class="d-flex gap-2">
+          <select name="sub_periodo" class="form-select" id="selSubCuatri">
+            <option value="1" {% if sub_periodo == '1' %}selected{% endif %}>1Q  Ene–Abr</option>
+            <option value="2" {% if sub_periodo == '2' %}selected{% endif %}>2Q  May–Ago</option>
+            <option value="3" {% if sub_periodo == '3' %}selected{% endif %}>3Q  Sep–Dic</option>
+          </select>
+          <select name="anio_periodo" class="form-select" style="width:100px;">
+            {% for y in range(2020, 2031) %}
+              <option value="{{ y }}" {% if anio_periodo == y %}selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <!-- Sub-selector trimestral -->
+      <div class="col-md-auto {% if periodo != 'trimestral' %}d-none{% endif %}" id="divSubTri">
+        <label class="form-label fw-semibold">Trimestre</label>
+        <div class="d-flex gap-2">
+          <select name="sub_periodo" class="form-select" id="selSubTri">
+            <option value="1" {% if sub_periodo == '1' %}selected{% endif %}>1T  Ene–Mar</option>
+            <option value="2" {% if sub_periodo == '2' %}selected{% endif %}>2T  Abr–Jun</option>
+            <option value="3" {% if sub_periodo == '3' %}selected{% endif %}>3T  Jul–Sep</option>
+            <option value="4" {% if sub_periodo == '4' %}selected{% endif %}>4T  Oct–Dic</option>
+          </select>
+          <select name="anio_periodo" class="form-select" style="width:100px;">
+            {% for y in range(2020, 2031) %}
+              <option value="{{ y }}" {% if anio_periodo == y %}selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="col-md-auto {% if not moneda_cod %}d-none{% endif %}" id="divBtn">
+        <label class="form-label d-block" style="visibility:hidden;">.</label>
+        <button type="submit" class="btn btn-lg"
+                style="background:var(--navy); color:#fff; font-weight:600;">
+          <i class="bi bi-search me-1"></i>Generar
+        </button>
+      </div>
+    </form>
   </div>
 </div>
 
-<!-- Tabla por propiedad -->
-<div class="card">
-  <div class="card-header-custom">
-    <i class="bi bi-table me-2"></i>Resumen por Propiedad
+{% if resultado %}
+<div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+  <div>
+    <h5 class="mb-1 fw-bold">Detalle de Ingresos y Gastos</h5>
+    <div class="text-muted" style="font-size:.88rem;">
+      <i class="bi bi-cash-coin me-1"></i>Moneda: <strong>{{ moneda_sel.nombre }} ({{ moneda_sel.signo }})</strong>
+      &nbsp;&nbsp;
+      <i class="bi bi-house me-1"></i>Propiedad:
+      <strong>{% if propiedad_arg == 'consolidado' %}Consolidado — todas las propiedades{% else %}{{ propiedad_sel.direccion }}{% endif %}</strong>
+      &nbsp;&nbsp;
+      <i class="bi bi-calendar3 me-1"></i>Período:
+      <strong>
+        {% if periodo == 'resumen' %}Todo el período
+        {% elif periodo == '6meses' %}Últimos 6 meses
+        {% elif periodo == 'cuatrimestral' %}
+          {% if sub_periodo == '1' %}1Q Ene–Abr {{ anio_periodo }}
+          {% elif sub_periodo == '2' %}2Q May–Ago {{ anio_periodo }}
+          {% elif sub_periodo == '3' %}3Q Sep–Dic {{ anio_periodo }}
+          {% else %}Cuatrimestral {{ anio_periodo }}{% endif %}
+        {% elif periodo == 'trimestral' %}
+          {% if sub_periodo == '1' %}1T Ene–Mar {{ anio_periodo }}
+          {% elif sub_periodo == '2' %}2T Abr–Jun {{ anio_periodo }}
+          {% elif sub_periodo == '3' %}3T Jul–Sep {{ anio_periodo }}
+          {% elif sub_periodo == '4' %}4T Oct–Dic {{ anio_periodo }}
+          {% else %}Trimestral {{ anio_periodo }}{% endif %}
+        {% endif %}
+      </strong>
+    </div>
   </div>
+  <button onclick="window.print()" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-printer me-1"></i>Imprimir / PDF
+  </button>
+</div>
+
+{% if not resultado.ingresos and not resultado.egresos %}
+<div class="alert alert-info">
+  <i class="bi bi-info-circle me-2"></i>
+  No hay transacciones para los filtros seleccionados.
+</div>
+{% else %}
+<div class="card">
   <div class="card-body p-0">
-    <div class="table-responsive">
-      <table class="table table-hover mb-0">
+    <table class="table mb-0" style="font-size:.92rem;">
+      <thead style="background:var(--navy); color:#fff;">
+        <tr>
+          <th class="ps-3" style="width:70%;">Concepto</th>
+          <th class="text-end pe-3">Total ({{ moneda_sel.signo }})</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="background:#d4edda;">
+          <td colspan="2" class="ps-3 fw-bold py-2"
+              style="color:#155724; font-size:.8rem; text-transform:uppercase; letter-spacing:.06em;">
+            <i class="bi bi-arrow-up-circle-fill me-1"></i>Ingresos
+          </td>
+        </tr>
+        {% if resultado.ingresos %}
+          {% for item in resultado.ingresos %}
+          <tr>
+            <td class="ps-4">{{ item.nombre }}</td>
+            <td class="text-end pe-3 ingreso fw-semibold">
+              {{ moneda_sel.signo }} {{ '{:,.2f}'.format(item.total) }}
+            </td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr><td colspan="2" class="ps-4 text-muted fst-italic">Sin registros de ingresos.</td></tr>
+        {% endif %}
+        <tr style="background:#b8dfc4; font-weight:700;">
+          <td class="ps-3">Total Ingresos</td>
+          <td class="text-end pe-3 ingreso">
+            {{ moneda_sel.signo }} {{ '{:,.2f}'.format(resultado.total_ingresos) }}
+          </td>
+        </tr>
+
+        <tr style="height:6px; background:#f8f9fa;"><td colspan="2"></td></tr>
+
+        <tr style="background:#f8d7da;">
+          <td colspan="2" class="ps-3 fw-bold py-2"
+              style="color:#721c24; font-size:.8rem; text-transform:uppercase; letter-spacing:.06em;">
+            <i class="bi bi-arrow-down-circle-fill me-1"></i>Egresos
+          </td>
+        </tr>
+        {% if resultado.egresos %}
+          {% for item in resultado.egresos %}
+          <tr>
+            <td class="ps-4">{{ item.nombre }}</td>
+            <td class="text-end pe-3 egreso fw-semibold">
+              {{ moneda_sel.signo }} {{ '{:,.2f}'.format(item.total) }}
+            </td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr><td colspan="2" class="ps-4 text-muted fst-italic">Sin registros de egresos.</td></tr>
+        {% endif %}
+        <tr style="background:#f1b0b7; font-weight:700;">
+          <td class="ps-3">Total Egresos</td>
+          <td class="text-end pe-3 egreso">
+            {{ moneda_sel.signo }} {{ '{:,.2f}'.format(resultado.total_egresos) }}
+          </td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr style="background:var(--navy); color:#fff; font-size:1.05rem;">
+          <td class="ps-3 fw-bold py-3">Rentabilidad</td>
+          <td class="text-end pe-3 fw-bold py-3"
+              style="color:{% if resultado.rentabilidad >= 0 %}#a8f0c6{% else %}#f5a0a8{% endif %};">
+            {{ moneda_sel.signo }} {{ '{:,.2f}'.format(resultado.rentabilidad) }}
+          </td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endif %}
+
+{% endif %}{# /tab ing_gast #}
+
+
+<!-- ══════════════════════════════════════════════════════════
+     TAB 2: Archivo para Cálculo de TIR
+     ══════════════════════════════════════════════════════════ -->
+{% if tab == 'tir' %}
+
+<!-- Paso 1: seleccionar moneda y propiedad -->
+<div class="card mb-4">
+  <div class="card-header-custom">
+    <i class="bi bi-funnel-fill me-2"></i>Filtros
+  </div>
+  <div class="card-body p-4">
+    <form method="GET" action="{{ url_for('reportes') }}" class="row g-3 align-items-end" id="formTirFiltro">
+      <input type="hidden" name="tab" value="tir">
+
+      <div class="col-md-3">
+        <label class="form-label fw-semibold">Moneda <span class="text-danger">*</span></label>
+        <select name="tir_moneda" class="form-select" id="selTirMoneda">
+          <option value="">— Seleccioná —</option>
+          {% for m in monedas %}
+            <option value="{{ m.cod }}" {% if tir_moneda_cod == m.cod %}selected{% endif %}>
+              {{ m.nombre }} ({{ m.signo }})
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-md-4 {% if not tir_moneda_cod %}d-none{% endif %}" id="divTirProp">
+        <label class="form-label fw-semibold">Propiedad</label>
+        <select name="tir_propiedad" class="form-select">
+          <option value="todas" {% if tir_propiedad == 'todas' %}selected{% endif %}>
+            Todas las propiedades
+          </option>
+          {% for p in propiedades %}
+            <option value="{{ p.cod }}" {% if tir_propiedad == p.cod|string %}selected{% endif %}>
+              {{ p.direccion }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-md-2 {% if not tir_moneda_cod %}d-none{% endif %}" id="divTirBtn">
+        <button type="submit" class="btn btn-lg w-100"
+                style="background:var(--navy); color:#fff; font-weight:600;">
+          <i class="bi bi-search me-1"></i>Filtrar
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if tir_items %}
+
+<!-- Explicación del formato -->
+<div class="alert alert-info mb-4">
+  <i class="bi bi-info-circle-fill me-2"></i>
+  Se generarán <strong>dos archivos CSV</strong> listos para la aplicación de TIR:
+  <ul class="mb-0 mt-1">
+    <li><strong>movimientos_tir.csv</strong> — columnas: <code>Date, Cusip, Net Amount, Security ID</code>.
+      Incluye la inversión inicial (negativa) y todas las transacciones como Dividendos (±).</li>
+    <li><strong>valores_finales_tir.csv</strong> — columnas: <code>Date, Cusip, Net Amount, Description</code>.
+      Valor de mercado = costo de compra de cada propiedad.</li>
+  </ul>
+</div>
+
+<!-- Paso 2: tabla de propiedades + fecha de valoración + botones descarga -->
+<form method="POST" action="{{ url_for('tir_download') }}" id="formTirDownload">
+  <input type="hidden" name="moneda_cod" value="{{ tir_moneda_cod }}">
+  <input type="hidden" name="propiedad_cod" value="{{ tir_propiedad }}">
+
+  <div class="card mb-4">
+    <div class="card-header-custom d-flex justify-content-between align-items-center">
+      <span><i class="bi bi-building me-2"></i>Propiedades a exportar</span>
+      <div class="d-flex align-items-center gap-3">
+        <label class="text-white fw-semibold mb-0" style="font-size:.9rem;">
+          <i class="bi bi-calendar3 me-1"></i>Fecha de valoración:
+        </label>
+        <input type="date" name="fecha_valor" class="form-control form-control-sm"
+               value="{{ hoy }}" style="width:160px;">
+      </div>
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0" style="font-size:.9rem;">
         <thead style="background:var(--navy); color:#fff;">
           <tr>
-            <th class="ps-3">#</th>
-            <th>Dirección</th>
-            <th>Estado</th>
-            <th class="text-end">Ingresos</th>
-            <th class="text-end">Egresos</th>
-            <th class="text-end">Neto</th>
-            <th class="text-end">Costo Compra</th>
+            <th class="ps-3">CUSIP</th>
+            <th>Propiedad</th>
+            <th class="text-center">Transacciones</th>
+            <th class="text-center">Inversión inicial</th>
+            <th class="text-end pe-3">Costo de Compra (= Valor Final)</th>
           </tr>
         </thead>
         <tbody>
-          {% for r in resumen %}
+          {% for item in tir_items %}
           <tr>
-            <td class="ps-3 text-muted">{{ r.propiedad.cod }}</td>
-            <td>
-              <a href="{{ url_for('propiedad', cod=r.propiedad.cod) }}" class="text-decoration-none fw-semibold">
-                {{ r.propiedad.direccion }}
-              </a>
-            </td>
-            <td>
-              {% if r.propiedad.disponible %}
-                <span class="badge bg-success">Disponible</span>
+            <td class="ps-3 fw-semibold" style="font-family:monospace;">{{ item.cusip }}</td>
+            <td>{{ item.propiedad.direccion }}</td>
+            <td class="text-center">{{ item.cant_tx }}</td>
+            <td class="text-center">
+              {% if item.tiene_inversion %}
+                <span class="badge bg-success"><i class="bi bi-check-lg"></i> Sí</span>
               {% else %}
-                <span class="badge bg-danger">No disponible</span>
+                <span class="badge bg-warning text-dark"><i class="bi bi-dash"></i> Sin datos</span>
               {% endif %}
             </td>
-            <td class="text-end ingreso">$ {{ '{:,.2f}'.format(r.ingresos) }}</td>
-            <td class="text-end egreso">$ {{ '{:,.2f}'.format(r.egresos) }}</td>
-            <td class="text-end fw-bold {% if r.neto >= 0 %}ingreso{% else %}egreso{% endif %}">
-              $ {{ '{:,.2f}'.format(r.neto) }}
-            </td>
-            <td class="text-end text-muted">
-              {% if r.propiedad.costo_compra %}
-                $ {{ '{:,.2f}'.format(r.propiedad.costo_compra) }}
-              {% else %}—{% endif %}
+            <td class="text-end pe-3">
+              {% if item.propiedad.costo_compra and item.tiene_inversion %}
+                {{ tir_moneda_sel.signo }} {{ '{:,.2f}'.format(item.propiedad.costo_compra) }}
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
             </td>
           </tr>
           {% endfor %}
         </tbody>
-        <tfoot>
-          <tr class="total-row">
-            <td colspan="3" class="ps-3">TOTALES</td>
-            <td class="text-end">$ {{ '{:,.2f}'.format(total_ing) }}</td>
-            <td class="text-end">$ {{ '{:,.2f}'.format(total_eg) }}</td>
-            <td class="text-end {% if total_net >= 0 %}text-success{% else %}text-danger{% endif %}">
-              $ {{ '{:,.2f}'.format(total_net) }}
-            </td>
-            <td></td>
-          </tr>
-        </tfoot>
       </table>
     </div>
   </div>
-</div>
 
+  <div class="d-flex gap-3 flex-wrap">
+    <button type="submit" name="archivo" value="movimientos" class="btn btn-lg"
+            style="background:var(--navy); color:#fff; font-weight:600;">
+      <i class="bi bi-download me-2"></i>Descargar Movimientos (CSV)
+    </button>
+    <button type="submit" name="archivo" value="valores" class="btn btn-lg btn-outline-secondary">
+      <i class="bi bi-download me-2"></i>Descargar Valores Finales (CSV)
+    </button>
+  </div>
+</form>
+
+{% elif tir_moneda_cod %}
+<div class="alert alert-warning">
+  <i class="bi bi-exclamation-triangle me-2"></i>
+  No se encontraron propiedades con datos en la moneda seleccionada.
+</div>
 {% endif %}
+
+{% endif %}{# /tab tir #}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Tab 1: mostrar filtros al elegir moneda
+  const selMoneda = document.getElementById('selMoneda');
+  if (selMoneda) {
+    selMoneda.addEventListener('change', function () {
+      const tiene = !!this.value;
+      ['divPropiedad', 'divPeriodo', 'divBtn'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('d-none', !tiene);
+      });
+      if (tiene) this.form.submit();
+    });
+  }
+
+  // Tab 1: mostrar sub-selector de período
+  const selPeriodo = document.getElementById('selPeriodo');
+  if (selPeriodo) {
+    selPeriodo.addEventListener('change', function () {
+      const v = this.value;
+      const divCuatri = document.getElementById('divSubCuatri');
+      const divTri    = document.getElementById('divSubTri');
+      if (divCuatri) divCuatri.classList.toggle('d-none', v !== 'cuatrimestral');
+      if (divTri)    divTri.classList.toggle('d-none',    v !== 'trimestral');
+    });
+  }
+
+  // Tab 2: mostrar filtros al elegir moneda
+  const selTirMoneda = document.getElementById('selTirMoneda');
+  if (selTirMoneda) {
+    selTirMoneda.addEventListener('change', function () {
+      const tiene = !!this.value;
+      ['divTirProp', 'divTirBtn'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('d-none', !tiene);
+      });
+      if (tiene) this.form.submit();
+    });
+  }
+</script>
+
+<style media="print">
+  nav, .card-header-custom, button, .btn, #formReporte,
+  #formTirFiltro, .section-title, .nav-tabs, .alert { display: none !important; }
+  .card { border: none !important; box-shadow: none !important; }
+  body { font-size: 12pt; }
+</style>
 {% endblock %}

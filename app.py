@@ -3,7 +3,7 @@ import uuid
 import json
 import csv
 import io
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from decimal import Decimal, InvalidOperation
 from functools import wraps
 
@@ -214,27 +214,238 @@ def carga():
 
 # ─── Reportes ─────────────────────────────────────────────────────────────────
 
+def _make_cusip(direccion: str) -> str:
+    """Primeros 9 caracteres no-espacio de la dirección."""
+    return direccion.replace(' ', '')[:9]
+
+
 @app.route('/reportes')
 @login_required
 def reportes():
-    propiedades = Propiedad.query.order_by(Propiedad.direccion).all()
-    resumen = []
-    for p in propiedades:
-        ingresos = sum(
-            (t.importe for t in p.transacciones if t.concepto_rel.tipo == 'ingreso'),
-            Decimal('0')
-        )
-        egresos = sum(
-            (t.importe for t in p.transacciones if t.concepto_rel.tipo == 'egreso'),
-            Decimal('0')
-        )
-        resumen.append({
-            'propiedad': p,
+    import csv as csv_mod
+    from collections import defaultdict
+    monedas     = Moneda.query.order_by(Moneda.cod).all()
+    propiedades = Propiedad.query.order_by(Propiedad.cod).all()
+    tab         = request.args.get('tab', 'ing_gast')
+
+    # ── Tab 1: Ingresos y Gastos ──────────────────────────────────────────────
+    moneda_cod    = request.args.get('moneda_cod', type=int)
+    propiedad_arg = request.args.get('propiedad_cod', 'consolidado')
+    periodo       = request.args.get('periodo', 'resumen')
+    sub_periodo   = request.args.get('sub_periodo', '')   # e.g. '1','2','3','4'
+    anio_periodo  = request.args.get('anio_periodo', type=int) or date.today().year
+    moneda_sel    = None
+    propiedad_sel = None
+    resultado     = None
+
+    # Propiedades que tienen transacciones en la moneda seleccionada (para el dropdown del Tab 1)
+    if moneda_cod:
+        _ids_con_tx = {r[0] for r in
+                       db.session.query(Transaccion.propiedad_cod)
+                       .filter_by(moneda_cod=moneda_cod).distinct()}
+        propiedades_filtradas = [p for p in propiedades if p.cod in _ids_con_tx]
+    else:
+        propiedades_filtradas = propiedades
+
+    if moneda_cod:
+        moneda_sel = Moneda.query.get(moneda_cod)
+        if not moneda_sel:
+            flash('Moneda no encontrada.', 'warning')
+            return redirect(url_for('reportes'))
+
+        query = Transaccion.query.filter_by(moneda_cod=moneda_cod)
+
+        if propiedad_arg and propiedad_arg != 'consolidado':
+            try:
+                pcod = int(propiedad_arg)
+                query = query.filter_by(propiedad_cod=pcod)
+                propiedad_sel = Propiedad.query.get(pcod)
+            except (ValueError, TypeError):
+                propiedad_arg = 'consolidado'
+
+        hoy = date.today()
+        if periodo == '6meses':
+            query = query.filter(Transaccion.fecha >= hoy - timedelta(days=180))
+        elif periodo == 'cuatrimestral' and sub_periodo:
+            n = int(sub_periodo)
+            # 1Q=Ene-Abr  2Q=May-Ago  3Q=Sep-Dic
+            starts = {1: (1, 1), 2: (5, 1), 3: (9, 1)}
+            ends   = {1: (4, 30), 2: (8, 31), 3: (12, 31)}
+            if n in starts:
+                d_ini = date(anio_periodo, starts[n][0], starts[n][1])
+                d_fin = date(anio_periodo, ends[n][0],   ends[n][1])
+                query = query.filter(Transaccion.fecha >= d_ini,
+                                     Transaccion.fecha <= d_fin)
+        elif periodo == 'trimestral' and sub_periodo:
+            n = int(sub_periodo)
+            # 1T=Ene-Mar  2T=Abr-Jun  3T=Jul-Sep  4T=Oct-Dic
+            starts = {1: (1, 1), 2: (4, 1), 3: (7, 1), 4: (10, 1)}
+            ends   = {1: (3, 31), 2: (6, 30), 3: (9, 30), 4: (12, 31)}
+            if n in starts:
+                d_ini = date(anio_periodo, starts[n][0], starts[n][1])
+                d_fin = date(anio_periodo, ends[n][0],   ends[n][1])
+                query = query.filter(Transaccion.fecha >= d_ini,
+                                     Transaccion.fecha <= d_fin)
+
+        totales = defaultdict(Decimal)
+        info_concepto = {}
+        for t in query.all():
+            c = t.concepto_rel
+            totales[c.cod] += t.importe
+            if c.cod not in info_concepto:
+                info_concepto[c.cod] = {'nombre': c.nombre, 'tipo': c.tipo}
+
+        ingresos, egresos = [], []
+        total_ing = total_egr = Decimal('0')
+        for cod, total in totales.items():
+            item = {'nombre': info_concepto[cod]['nombre'], 'total': total}
+            if info_concepto[cod]['tipo'] == 'ingreso':
+                ingresos.append(item)
+                total_ing += total
+            else:
+                egresos.append(item)
+                total_egr += total
+
+        ingresos.sort(key=lambda x: x['nombre'])
+        egresos.sort(key=lambda x: x['nombre'])
+
+        resultado = {
             'ingresos': ingresos,
             'egresos': egresos,
-            'neto': ingresos - egresos
-        })
-    return render_template('reportes.html', resumen=resumen)
+            'total_ingresos': total_ing,
+            'total_egresos': total_egr,
+            'rentabilidad': total_ing - total_egr,
+        }
+
+    # ── Tab 2: TIR ────────────────────────────────────────────────────────────
+    tir_moneda_cod  = request.args.get('tir_moneda', type=int)
+    tir_propiedad   = request.args.get('tir_propiedad', 'todas')
+    tir_moneda_sel  = None
+    tir_items       = []
+
+    if tir_moneda_cod:
+        tir_moneda_sel = Moneda.query.get(tir_moneda_cod)
+        prop_ids = set()
+        for row in db.session.query(Transaccion.propiedad_cod).filter_by(moneda_cod=tir_moneda_cod).distinct():
+            prop_ids.add(row[0])
+        for p in Propiedad.query.filter_by(moneda_cod=tir_moneda_cod).all():
+            prop_ids.add(p.cod)
+
+        if tir_propiedad != 'todas':
+            try:
+                prop_ids = {int(tir_propiedad)} & prop_ids
+            except (ValueError, TypeError):
+                tir_propiedad = 'todas'
+
+        for pcod in sorted(prop_ids):
+            p = Propiedad.query.get(pcod)
+            if not p:
+                continue
+            cant_tx = Transaccion.query.filter_by(propiedad_cod=p.cod, moneda_cod=tir_moneda_cod).count()
+            tir_items.append({
+                'propiedad': p,
+                'cusip': _make_cusip(p.direccion),
+                'cant_tx': cant_tx,
+                'tiene_inversion': bool(p.costo_compra and p.fecha_compra and p.moneda_cod == tir_moneda_cod),
+            })
+
+    return render_template('reportes.html',
+                           monedas=monedas,
+                           propiedades=propiedades,
+                           propiedades_filtradas=propiedades_filtradas,
+                           tab=tab,
+                           # tab 1
+                           moneda_cod=moneda_cod,
+                           moneda_sel=moneda_sel,
+                           propiedad_arg=propiedad_arg,
+                           propiedad_sel=propiedad_sel,
+                           periodo=periodo,
+                           sub_periodo=sub_periodo,
+                           anio_periodo=anio_periodo,
+                           resultado=resultado,
+                           # tab 2
+                           tir_moneda_cod=tir_moneda_cod,
+                           tir_moneda_sel=tir_moneda_sel,
+                           tir_propiedad=tir_propiedad,
+                           tir_items=tir_items,
+                           hoy=date.today().strftime('%Y-%m-%d'))
+
+
+@app.route('/reportes/tir/download', methods=['POST'])
+@login_required
+def tir_download():
+    import csv as csv_mod
+
+    moneda_cod    = request.form.get('moneda_cod', type=int)
+    propiedad_arg = request.form.get('propiedad_cod', 'todas')
+    tipo_archivo  = request.form.get('archivo', 'movimientos')
+    fecha_val_str = request.form.get('fecha_valor', date.today().strftime('%Y-%m-%d'))
+
+    if not moneda_cod:
+        flash('Seleccioná una moneda.', 'warning')
+        return redirect(url_for('reportes') + '?tab=tir')
+
+    prop_query = Propiedad.query.order_by(Propiedad.cod)
+    if propiedad_arg != 'todas':
+        try:
+            prop_query = prop_query.filter_by(cod=int(propiedad_arg))
+        except (ValueError, TypeError):
+            pass
+    propiedades_sel = prop_query.all()
+
+    if tipo_archivo == 'movimientos':
+        rows = []
+        for p in propiedades_sel:
+            cusip = _make_cusip(p.direccion)
+            if p.costo_compra and p.fecha_compra and p.moneda_cod == moneda_cod:
+                rows.append({
+                    'Date': p.fecha_compra.strftime('%Y-%m-%d'),
+                    'Cusip': cusip,
+                    'Net Amount': float(-p.costo_compra),
+                    'Security ID': 'Inversion',
+                })
+            for t in (Transaccion.query
+                      .filter_by(propiedad_cod=p.cod, moneda_cod=moneda_cod)
+                      .order_by(Transaccion.fecha).all()):
+                signo = 1 if t.concepto_rel.tipo == 'ingreso' else -1
+                rows.append({
+                    'Date': t.fecha.strftime('%Y-%m-%d'),
+                    'Cusip': cusip,
+                    'Net Amount': float(signo * t.importe),
+                    'Security ID': 'Dividendo',
+                })
+        rows.sort(key=lambda r: (r['Cusip'], r['Date']))
+
+        out = io.StringIO()
+        w = csv_mod.DictWriter(out, fieldnames=['Date', 'Cusip', 'Net Amount', 'Security ID'])
+        w.writeheader()
+        w.writerows(rows)
+        return Response(out.getvalue(), mimetype='text/csv',
+                        headers={'Content-Disposition': 'attachment;filename=movimientos_tir.csv'})
+
+    else:  # valores finales
+        try:
+            fecha_val = datetime.strptime(fecha_val_str, '%Y-%m-%d').strftime('%Y-%m-%d')
+        except ValueError:
+            fecha_val = date.today().strftime('%Y-%m-%d')
+
+        rows = []
+        for p in propiedades_sel:
+            if p.costo_compra and p.moneda_cod == moneda_cod:
+                cusip = _make_cusip(p.direccion)
+                rows.append({
+                    'Date': fecha_val,
+                    'Cusip': cusip,
+                    'Net Amount': float(p.costo_compra),
+                    'Description': cusip,
+                })
+
+        out = io.StringIO()
+        w = csv_mod.DictWriter(out, fieldnames=['Date', 'Cusip', 'Net Amount', 'Description'])
+        w.writeheader()
+        w.writerows(rows)
+        return Response(out.getvalue(), mimetype='text/csv',
+                        headers={'Content-Disposition': 'attachment;filename=valores_finales_tir.csv'})
 
 
 # ─── Configuración ────────────────────────────────────────────────────────────
@@ -547,7 +758,8 @@ def _leer_archivo(f) -> tuple[list[dict], str | None]:
         try:
             contenido = f.read().decode('utf-8-sig')
             reader = csv.DictReader(io.StringIO(contenido))
-            filas = [{k.strip().lower(): (v or '').strip() for k, v in row.items()}
+            filas = [{k.strip().lower(): (v or '').strip()
+                      for k, v in row.items() if k is not None}
                      for row in reader]
             return filas, None
         except Exception as e:
@@ -559,6 +771,17 @@ def _leer_archivo(f) -> tuple[list[dict], str | None]:
             df = pd.read_excel(f, dtype=str)
             df.columns = [c.strip().lower() for c in df.columns]
             df = df.fillna('')
+            # Pandas convierte celdas de fecha de Excel a "YYYY-MM-DD HH:MM:SS".
+            # Las normalizamos a DD/MM/AAAA para que pasen la validación.
+            if 'fecha' in df.columns:
+                def _normalizar_fecha_excel(v):
+                    for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d'):
+                        try:
+                            return datetime.strptime(str(v).strip(), fmt).strftime('%d/%m/%Y')
+                        except ValueError:
+                            pass
+                    return v
+                df['fecha'] = df['fecha'].apply(_normalizar_fecha_excel)
             filas = [{k: str(v).strip() for k, v in row.items()} for row in df.to_dict('records')]
             return filas, None
         except Exception as e:
@@ -626,14 +849,15 @@ def _validar_filas(filas_raw: list[dict]) -> list[dict]:
         todo_completo = (not errores_duros and not necesita_completar
                          and fecha and importe and moneda_cod and propiedad_cod and concepto_cod)
         if todo_completo:
-            clave = (str(fecha), propiedad_cod, concepto_cod, str(importe), moneda_cod)
+            clave = (str(fecha), propiedad_cod, concepto_cod, str(importe), moneda_cod, observaciones)
             if clave in vistos:
                 errores_duros.append('Registro duplicado dentro del archivo')
             else:
                 vistos.add(clave)
                 if Transaccion.query.filter_by(
                     fecha=fecha, propiedad_cod=propiedad_cod,
-                    concepto_cod=concepto_cod, importe=importe, moneda_cod=moneda_cod
+                    concepto_cod=concepto_cod, importe=importe,
+                    moneda_cod=moneda_cod, observaciones=observaciones
                 ).first():
                     errores_duros.append('El registro ya existe en la base de datos')
 
