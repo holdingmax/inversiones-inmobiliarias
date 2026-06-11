@@ -176,6 +176,51 @@
   </div>
 </div>
 
+<!-- Barra de filtros y auditoría grupal -->
+<div class="card mb-3">
+  <div class="card-body py-3">
+    <div class="row g-3 align-items-end">
+
+      <!-- Filtro por auditado -->
+      <div class="col-md-4">
+        <form method="GET" action="{{ url_for('propiedad') }}" id="formFiltroAuditado">
+          <input type="hidden" name="cod" value="{{ prop_sel.cod }}">
+          <label class="form-label info-label mb-1">Filtrar por auditoría</label>
+          <select name="auditado" class="form-select form-select-sm"
+                  onchange="document.getElementById('formFiltroAuditado').submit()">
+            <option value="todos"  {% if filtro_audit == 'todos' %}selected{% endif %}>Todos</option>
+            <option value="si"     {% if filtro_audit == 'si'    %}selected{% endif %}>Solo auditados</option>
+            <option value="no"     {% if filtro_audit == 'no'    %}selected{% endif %}>Solo no auditados</option>
+          </select>
+        </form>
+      </div>
+
+      <!-- Auditar grupo -->
+      <div class="col-md-8">
+        <form method="POST" action="{{ url_for('auditar_grupo') }}"
+              onsubmit="return confirmarAuditaGrupo()">
+          <input type="hidden" name="propiedad_cod" value="{{ prop_sel.cod }}">
+          <input type="hidden" name="filtro_audit"  value="{{ filtro_audit }}">
+          <label class="form-label info-label mb-1">Dar por auditados por concepto</label>
+          <div class="input-group input-group-sm">
+            <select name="concepto_cod" class="form-select" id="selConceptoGrupo" required>
+              <option value="">— Elegir concepto —</option>
+              {% for c in conceptos %}
+                <option value="{{ c.cod }}">{{ c.nombre }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-success">
+              <i class="bi bi-check-all me-1"></i>Marcar como auditados
+            </button>
+          </div>
+          <small class="text-muted">Marca como auditados todos los registros no auditados del concepto elegido.</small>
+        </form>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 <!-- Tabla de transacciones -->
 {% if transacciones %}
 <div class="card">
@@ -190,6 +235,7 @@
             <th>Concepto</th>
             <th>Moneda</th>
             <th>Observaciones</th>
+            <th class="text-center">Auditado</th>
           </tr>
         </thead>
         <tbody>
@@ -213,6 +259,32 @@
             <td>{{ t.concepto_rel.nombre }}</td>
             <td>{{ t.moneda_rel.signo }}</td>
             <td class="text-muted">{{ t.observaciones or '' }}</td>
+            <td class="text-center">
+              {% if t.auditado %}
+                <!-- Auditado=Sí: clic pide confirmación para pasar a No -->
+                <button type="button"
+                        class="badge bg-success border-0 btn-auditado"
+                        style="cursor:pointer; font-size:.8rem; padding:.35em .6em;"
+                        data-tx-id="{{ t.id }}"
+                        data-filtro="{{ filtro_audit }}"
+                        data-accion="desauditado"
+                        onclick="abrirConfirmToggle(this)">
+                  Sí
+                </button>
+              {% else %}
+                <!-- Auditado=No: clic directo para pasar a Sí (sin confirmación) -->
+                <form method="POST"
+                      action="{{ url_for('toggle_auditado', tx_id=t.id) }}"
+                      style="display:inline;">
+                  <input type="hidden" name="filtro_audit" value="{{ filtro_audit }}">
+                  <button type="submit"
+                          class="badge bg-danger border-0"
+                          style="cursor:pointer; font-size:.8rem; padding:.35em .6em;">
+                    No
+                  </button>
+                </form>
+              {% endif %}
+            </td>
           </tr>
           {% endfor %}
         </tbody>
@@ -222,7 +294,7 @@
             <td class="text-end {% if total_neto >= 0 %}text-success{% else %}text-danger{% endif %}">
               $ {{ '{:,.2f}'.format(total_neto) }}
             </td>
-            <td colspan="4"></td>
+            <td colspan="5"></td>
           </tr>
         </tfoot>
       </table>
@@ -235,6 +307,36 @@
   <a href="{{ url_for('carga') }}" class="alert-link ms-1">Agregar transacción</a>
 </div>
 {% endif %}
+
+<!-- Modal confirmación: pasar auditado Sí → No -->
+<div class="modal fade" id="modalConfirmDesauditado" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:380px;">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--navy); color:#fff;">
+        <h6 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>Confirmar cambio</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center py-4">
+        <p class="mb-0">¿Querés marcar este registro como <strong>No auditado</strong>?</p>
+      </div>
+      <div class="modal-footer justify-content-center gap-3 border-0 pb-4">
+        <!-- Sí: confirmar (fondo verde) -->
+        <form id="formToggleAuditado" method="POST" action="">
+          <input type="hidden" name="filtro_audit" id="hiddenFiltroToggle" value="">
+          <button type="submit" class="btn px-4 fw-semibold"
+                  style="background:#198754; color:#fff; min-width:90px;">
+            <i class="bi bi-check-lg me-1"></i>Sí
+          </button>
+        </form>
+        <!-- No: cancelar (fondo rojo) -->
+        <button type="button" class="btn px-4 fw-semibold" data-bs-dismiss="modal"
+                style="background:#dc3545; color:#fff; min-width:90px;">
+          <i class="bi bi-x-lg me-1"></i>No
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 
 {% else %}
 <div class="text-center text-muted py-5">
@@ -249,4 +351,23 @@
 </div>
 {% endif %}
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function abrirConfirmToggle(btn) {
+    const txId   = btn.dataset.txId;
+    const filtro = btn.dataset.filtro;
+    const form   = document.getElementById('formToggleAuditado');
+    form.action  = `/propiedad/transaccion/${txId}/toggle_auditado`;
+    document.getElementById('hiddenFiltroToggle').value = filtro;
+    new bootstrap.Modal(document.getElementById('modalConfirmDesauditado')).show();
+  }
+
+  function confirmarAuditaGrupo() {
+    const sel = document.getElementById('selConceptoGrupo');
+    if (!sel.value) { alert('Seleccioná un concepto.'); return false; }
+    return confirm('¿Marcar como auditados todos los registros no auditados de este concepto?');
+  }
+</script>
 {% endblock %}

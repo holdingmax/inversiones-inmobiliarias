@@ -86,6 +86,7 @@ class Transaccion(db.Model):
     fecha = db.Column(db.Date, nullable=False)
     propiedad_cod = db.Column(db.Integer, db.ForeignKey('propiedades.cod'), nullable=False)
     concepto_cod = db.Column(db.Integer, db.ForeignKey('conceptos.cod'), nullable=False)
+    auditado = db.Column(db.Boolean, default=True, nullable=False)
     importe = db.Column(db.Numeric(15, 2), nullable=False)
     moneda_cod = db.Column(db.Integer, db.ForeignKey('monedas.cod'), nullable=False)
     observaciones = db.Column(db.String(50))
@@ -147,15 +148,20 @@ def propiedad():
     transacciones = []
     total_ingresos = Decimal('0')
     total_egresos = Decimal('0')
+    conceptos = Concepto.query.order_by(Concepto.nombre).all()
 
-    cod = request.args.get('cod', type=int)
+    cod          = request.args.get('cod', type=int)
+    filtro_audit = request.args.get('auditado', 'todos')  # 'todos'|'si'|'no'
+
     if cod:
         prop_sel = db.session.get(Propiedad, cod)
         if prop_sel:
-            transacciones = (Transaccion.query
-                             .filter_by(propiedad_cod=cod)
-                             .order_by(Transaccion.fecha)
-                             .all())
+            q = Transaccion.query.filter_by(propiedad_cod=cod)
+            if filtro_audit == 'si':
+                q = q.filter_by(auditado=True)
+            elif filtro_audit == 'no':
+                q = q.filter_by(auditado=False)
+            transacciones = q.order_by(Transaccion.fecha).all()
             for t in transacciones:
                 if t.concepto_rel.tipo == 'ingreso':
                     total_ingresos += t.importe
@@ -169,7 +175,9 @@ def propiedad():
                            total_ingresos=total_ingresos,
                            total_egresos=total_egresos,
                            total_neto=total_ingresos - total_egresos,
-                           cod_sel=cod)
+                           cod_sel=cod,
+                           filtro_audit=filtro_audit,
+                           conceptos=conceptos)
 
 
 @app.route('/propiedad/imagen/<int:cod>')
@@ -190,6 +198,34 @@ def propiedad_adjunto_notas(cod):
     return Response(prop.adjunto_notas, mimetype=prop.adjunto_notas_tipo or 'image/jpeg')
 
 
+@app.route('/propiedad/transaccion/<int:tx_id>/toggle_auditado', methods=['POST'])
+@login_required
+def toggle_auditado(tx_id):
+    t = db.session.get(Transaccion, tx_id)
+    if not t:
+        return '', 404
+    t.auditado = not t.auditado
+    db.session.commit()
+    return redirect(url_for('propiedad', cod=t.propiedad_cod,
+                            auditado=request.form.get('filtro_audit', 'todos')))
+
+
+@app.route('/propiedad/auditar_grupo', methods=['POST'])
+@login_required
+def auditar_grupo():
+    propiedad_cod = request.form.get('propiedad_cod', type=int)
+    concepto_cod  = request.form.get('concepto_cod',  type=int)
+    filtro_audit  = request.form.get('filtro_audit', 'todos')
+    if propiedad_cod and concepto_cod:
+        Transaccion.query.filter_by(
+            propiedad_cod=propiedad_cod,
+            concepto_cod=concepto_cod,
+            auditado=False
+        ).update({'auditado': True})
+        db.session.commit()
+    return redirect(url_for('propiedad', cod=propiedad_cod, auditado=filtro_audit))
+
+
 # ─── Carga de información ─────────────────────────────────────────────────────
 
 @app.route('/carga', methods=['GET', 'POST'])
@@ -201,18 +237,28 @@ def carga():
 
     if request.method == 'POST':
         try:
-            t = Transaccion(
-                fecha=datetime.strptime(request.form['fecha'], '%Y-%m-%d').date(),
-                propiedad_cod=int(request.form['propiedad_cod']),
-                concepto_cod=int(request.form['concepto_cod']),
-                importe=Decimal(request.form['importe']),
-                moneda_cod=int(request.form['moneda_cod']),
-                observaciones=request.form.get('observaciones', '').strip()[:50]
-            )
-            db.session.add(t)
-            db.session.commit()
-            flash('Transacción registrada correctamente.', 'success')
-            return redirect(url_for('carga'))
+            propiedad_cod = int(request.form['propiedad_cod'])
+            moneda_cod    = int(request.form['moneda_cod'])
+            prop = db.session.get(Propiedad, propiedad_cod)
+            if prop and prop.moneda_cod and prop.moneda_cod != moneda_cod:
+                moneda_prop = Moneda.query.get(prop.moneda_cod)
+                flash(f'La propiedad "{prop.direccion}" está configurada en '
+                      f'{moneda_prop.nombre if moneda_prop else prop.moneda_cod}. '
+                      f'La moneda de la transacción debe coincidir.', 'danger')
+            else:
+                t = Transaccion(
+                    fecha=datetime.strptime(request.form['fecha'], '%Y-%m-%d').date(),
+                    propiedad_cod=propiedad_cod,
+                    concepto_cod=int(request.form['concepto_cod']),
+                    importe=Decimal(request.form['importe']),
+                    moneda_cod=moneda_cod,
+                    observaciones=request.form.get('observaciones', '').strip()[:50],
+                    auditado=True,
+                )
+                db.session.add(t)
+                db.session.commit()
+                flash('Transacción registrada correctamente.', 'success')
+                return redirect(url_for('carga'))
         except Exception as e:
             db.session.rollback()
             flash(f'Error al guardar: {e}', 'danger')
@@ -250,12 +296,9 @@ def reportes():
     propiedad_sel = None
     resultado     = None
 
-    # Propiedades que tienen transacciones en la moneda seleccionada (para el dropdown del Tab 1)
+    # Propiedades configuradas con la moneda seleccionada (para el dropdown del Tab 1)
     if moneda_cod:
-        _ids_con_tx = {r[0] for r in
-                       db.session.query(Transaccion.propiedad_cod)
-                       .filter_by(moneda_cod=moneda_cod).distinct()}
-        propiedades_filtradas = [p for p in propiedades if p.cod in _ids_con_tx]
+        propiedades_filtradas = [p for p in propiedades if p.moneda_cod == moneda_cod]
     else:
         propiedades_filtradas = propiedades
 
@@ -866,6 +909,15 @@ def _validar_filas(filas_raw: list[dict]) -> list[dict]:
             necesita_completar.append('propiedad_cod')
         else:
             propiedad_obj = propiedades[propiedad_cod]
+            # Validar que la moneda de la transacción coincide con la de la propiedad
+            if (not errores_duros and moneda_obj
+                    and propiedad_obj.moneda_cod
+                    and propiedad_obj.moneda_cod != moneda_cod):
+                errores_duros.append(
+                    f'La propiedad "{propiedad_obj.direccion}" está configurada en '
+                    f'{monedas[propiedad_obj.moneda_cod].signo if propiedad_obj.moneda_cod in monedas else propiedad_obj.moneda_cod}, '
+                    f'pero la transacción usa moneda_cod {moneda_cod}. Las monedas deben coincidir.'
+                )
 
         raw_conc = fila.get('concepto_cod', '').strip()
         if not raw_conc or concepto_cod is None or concepto_cod not in conceptos:
@@ -976,15 +1028,23 @@ def carga_confirmar():
         except ValueError:
             return None
 
-    # Verificar que todos los seleccionados estén completos antes de insertar
+    # Verificar que todos los seleccionados estén completos y con moneda coherente
     incompletos = []
     for fila in todas:
         if str(fila['fila']) not in seleccionadas or not fila['valido']:
             continue
-        prop = _get_cod(fila, 'propiedad_cod')
-        conc = _get_cod(fila, 'concepto_cod')
-        if not prop or not conc:
+        prop_cod = _get_cod(fila, 'propiedad_cod')
+        conc     = _get_cod(fila, 'concepto_cod')
+        if not prop_cod or not conc:
             incompletos.append(str(fila['fila']))
+            continue
+        prop = db.session.get(Propiedad, prop_cod)
+        if prop and prop.moneda_cod and prop.moneda_cod != fila['moneda_cod']:
+            moneda_prop = Moneda.query.get(prop.moneda_cod)
+            incompletos.append(
+                f'{fila["fila"]} (moneda incorrecta: la propiedad usa '
+                f'{moneda_prop.nombre if moneda_prop else prop.moneda_cod})'
+            )
 
     if incompletos:
         flash(f'Completá todos los campos requeridos antes de guardar '
@@ -1002,7 +1062,8 @@ def carga_confirmar():
                 concepto_cod=_get_cod(fila, 'concepto_cod'),
                 importe=Decimal(fila['importe']),
                 moneda_cod=fila['moneda_cod'],
-                observaciones=fila.get('observaciones', '')
+                observaciones=fila.get('observaciones', ''),
+                auditado=False,
             )
             db.session.add(t)
             insertados += 1
@@ -1049,6 +1110,7 @@ def init_db():
         'ALTER TABLE propiedades ADD COLUMN notas VARCHAR(250)',
         'ALTER TABLE propiedades ADD COLUMN adjunto_notas BLOB',
         'ALTER TABLE propiedades ADD COLUMN adjunto_notas_tipo VARCHAR(50)',
+        'ALTER TABLE transacciones ADD COLUMN auditado BOOLEAN NOT NULL DEFAULT 1',
     ]:
         try:
             with db.engine.connect() as conn:

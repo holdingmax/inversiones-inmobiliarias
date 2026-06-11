@@ -51,9 +51,18 @@
             {% else %}
             <form method="POST" action="{{ url_for('carga') }}">
 
+              <!-- Mapa moneda por propiedad (para auto-selección) -->
+              <script>
+                const monedaPorPropiedad = {
+                  {% for p in propiedades %}
+                    {{ p.cod }}: {{ p.moneda_cod or 'null' }},
+                  {% endfor %}
+                };
+              </script>
+
               <div class="mb-3">
                 <label class="form-label fw-semibold">Propiedad <span class="text-danger">*</span></label>
-                <select name="propiedad_cod" class="form-select" required>
+                <select name="propiedad_cod" class="form-select" id="selPropCarga" required>
                   <option value="">— Seleccioná —</option>
                   {% for p in propiedades %}
                     <option value="{{ p.cod }}">{{ p.direccion }}</option>
@@ -68,12 +77,13 @@
                 </div>
                 <div class="col-sm-6">
                   <label class="form-label fw-semibold">Moneda <span class="text-danger">*</span></label>
-                  <select name="moneda_cod" class="form-select" required>
+                  <select name="moneda_cod" class="form-select" id="selMonedaCarga" required>
                     <option value="">— Seleccioná —</option>
                     {% for m in monedas %}
                       <option value="{{ m.cod }}">{{ m.nombre }} ({{ m.signo }})</option>
                     {% endfor %}
                   </select>
+                  <small id="monedaHint" class="text-muted"></small>
                 </div>
               </div>
 
@@ -187,6 +197,24 @@
   if (hash) {
     const tab = document.querySelector(`[href="${hash}"]`);
     if (tab) new bootstrap.Tab(tab).show();
+  }
+
+  // Auto-seleccionar moneda según la propiedad elegida
+  const selProp   = document.getElementById('selPropCarga');
+  const selMoneda = document.getElementById('selMonedaCarga');
+  const hint      = document.getElementById('monedaHint');
+  if (selProp && selMoneda) {
+    selProp.addEventListener('change', function () {
+      const moneda = monedaPorPropiedad[this.value];
+      if (moneda) {
+        selMoneda.value = moneda;
+        selMoneda.disabled = true;
+        if (hint) hint.textContent = 'Moneda fijada por la propiedad seleccionada.';
+      } else {
+        selMoneda.disabled = false;
+        if (hint) hint.textContent = '';
+      }
+    });
   }
 </script>
 {% endblock %}
