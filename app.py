@@ -22,7 +22,7 @@ except ImportError:
 # Almacenamiento temporal de imports pendientes (en memoria, válido para instancia única)
 _pending_imports: dict = {}
 
-COLUMNAS_REQUERIDAS = {'fecha', 'propiedad_cod', 'concepto_cod', 'importe', 'moneda_cod'}
+COLUMNAS_REQUERIDAS = {'fecha', 'importe', 'moneda_cod'}  # mínimo para leer el archivo
 FORMATOS_FECHA = ('%d/%m/%Y',)  # Único formato aceptado: DD/MM/AAAA
 
 app = Flask(__name__)
@@ -243,10 +243,10 @@ def reportes():
 @login_required
 def configuracion():
     return render_template('configuracion.html',
-                           propiedades=Propiedad.query.order_by(Propiedad.direccion).all(),
-                           conceptos=Concepto.query.order_by(Concepto.nombre).all(),
-                           monedas=Moneda.query.order_by(Moneda.nombre).all(),
-                           usuarios=Usuario.query.order_by(Usuario.nombre_usuario).all())
+                           propiedades=Propiedad.query.order_by(Propiedad.cod).all(),
+                           conceptos=Concepto.query.order_by(Concepto.cod).all(),
+                           monedas=Moneda.query.order_by(Moneda.cod).all(),
+                           usuarios=Usuario.query.order_by(Usuario.cod).all())
 
 
 # Propiedades CRUD
@@ -568,17 +568,21 @@ def _leer_archivo(f) -> tuple[list[dict], str | None]:
 
 
 def _validar_filas(filas_raw: list[dict]) -> list[dict]:
-    """Valida cada fila con controles a→b→c→d y devuelve lista enriquecida."""
+    """
+    Valida cada fila. Solo fecha/importe/moneda son errores duros (bloquean la fila).
+    propiedad_cod y concepto_cod son blandos: si faltan o son inválidos se marcan en
+    necesita_completar para que el usuario los elija en la pantalla de revisión.
+    """
     propiedades = {p.cod: p for p in Propiedad.query.all()}
     conceptos   = {c.cod: c for c in Concepto.query.all()}
     monedas     = {m.cod: m for m in Moneda.query.all()}
 
     resultado = []
-    vistos = set()  # para duplicados intra-archivo
+    vistos = set()
 
     for i, fila in enumerate(filas_raw, start=1):
-        errores: list[str] = []
-        categoria_error: str | None = None
+        errores_duros: list[str] = []       # impiden seleccionar la fila
+        necesita_completar: list[str] = []  # el usuario completa en pantalla
 
         propiedad_cod = _parse_int(fila.get('propiedad_cod', ''))
         concepto_cod  = _parse_int(fila.get('concepto_cod', ''))
@@ -589,78 +593,66 @@ def _validar_filas(filas_raw: list[dict]) -> list[dict]:
 
         propiedad_obj = concepto_obj = moneda_obj = None
 
-        # ── (b) Validación de FK ──────────────────────────────────────────────
-        if propiedad_cod is not None and propiedad_cod not in propiedades:
-            errores.append(f'propiedad_cod {propiedad_cod} no existe')
-            categoria_error = 'b'
-        elif propiedad_cod:
-            propiedad_obj = propiedades[propiedad_cod]
-
-        if concepto_cod is not None and concepto_cod not in conceptos:
-            errores.append(f'concepto_cod {concepto_cod} no existe')
-            categoria_error = categoria_error or 'b'
-        elif concepto_cod:
-            concepto_obj = conceptos[concepto_cod]
-
-        if moneda_cod is not None and moneda_cod not in monedas:
-            errores.append(f'moneda_cod {moneda_cod} no existe')
-            categoria_error = categoria_error or 'b'
-        elif moneda_cod:
+        # ── Campos duros: fecha, importe, moneda ─────────────────────────────
+        if not fila.get('fecha', '').strip() or fecha is None:
+            errores_duros.append(
+                f'Fecha inválida o vacía (valor: "{fila.get("fecha","")}" — formato requerido: DD/MM/AAAA)'
+            )
+        if importe is None:
+            errores_duros.append('Importe inválido o vacío')
+        if not fila.get('moneda_cod', '').strip():
+            errores_duros.append('Moneda vacía')
+        elif moneda_cod is None:
+            errores_duros.append(f'Moneda inválida (valor: "{fila.get("moneda_cod","")}")')
+        elif moneda_cod not in monedas:
+            errores_duros.append(f'moneda_cod {moneda_cod} no existe en la tabla Monedas')
+        else:
             moneda_obj = monedas[moneda_cod]
 
-        # ── (c) Campos requeridos no vacíos ──────────────────────────────────
-        if not categoria_error:
-            if not fila.get('fecha', '').strip() or fecha is None:
-                errores.append(f'fecha inválida o vacía (valor: "{fila.get("fecha","")}" — formato requerido: DD/MM/AAAA)')
-                categoria_error = 'c'
-            if propiedad_cod is None:
-                errores.append('propiedad_cod vacío o inválido')
-                categoria_error = categoria_error or 'c'
-            if concepto_cod is None:
-                errores.append('concepto_cod vacío o inválido')
-                categoria_error = categoria_error or 'c'
-            if importe is None:
-                errores.append('importe inválido o vacío')
-                categoria_error = categoria_error or 'c'
-            if moneda_cod is None:
-                errores.append('moneda_cod vacío o inválido')
-                categoria_error = categoria_error or 'c'
+        # ── Campos blandos: propiedad, concepto ──────────────────────────────
+        raw_prop = fila.get('propiedad_cod', '').strip()
+        if not raw_prop or propiedad_cod is None or propiedad_cod not in propiedades:
+            necesita_completar.append('propiedad_cod')
+        else:
+            propiedad_obj = propiedades[propiedad_cod]
 
-        # ── (d) Duplicados ────────────────────────────────────────────────────
-        if not categoria_error:
+        raw_conc = fila.get('concepto_cod', '').strip()
+        if not raw_conc or concepto_cod is None or concepto_cod not in conceptos:
+            necesita_completar.append('concepto_cod')
+        else:
+            concepto_obj = conceptos[concepto_cod]
+
+        # ── Duplicados (solo cuando todos los campos están disponibles) ───────
+        todo_completo = (not errores_duros and not necesita_completar
+                         and fecha and importe and moneda_cod and propiedad_cod and concepto_cod)
+        if todo_completo:
             clave = (str(fecha), propiedad_cod, concepto_cod, str(importe), moneda_cod)
-
             if clave in vistos:
-                errores.append('registro duplicado dentro del archivo')
-                categoria_error = 'd'
+                errores_duros.append('Registro duplicado dentro del archivo')
             else:
                 vistos.add(clave)
-                existe_db = Transaccion.query.filter_by(
-                    fecha=fecha,
-                    propiedad_cod=propiedad_cod,
-                    concepto_cod=concepto_cod,
-                    importe=importe,
-                    moneda_cod=moneda_cod
-                ).first()
-                if existe_db:
-                    errores.append('registro ya existe en la base de datos')
-                    categoria_error = 'd'
+                if Transaccion.query.filter_by(
+                    fecha=fecha, propiedad_cod=propiedad_cod,
+                    concepto_cod=concepto_cod, importe=importe, moneda_cod=moneda_cod
+                ).first():
+                    errores_duros.append('El registro ya existe en la base de datos')
 
         resultado.append({
             'fila': i,
             'fecha': str(fecha) if fecha else fila.get('fecha', ''),
-            'propiedad_cod': propiedad_cod,
-            'propiedad_dir': propiedad_obj.direccion if propiedad_obj else fila.get('propiedad_cod', ''),
-            'concepto_cod': concepto_cod,
-            'concepto_nombre': concepto_obj.nombre if concepto_obj else fila.get('concepto_cod', ''),
+            'propiedad_cod': propiedad_obj.cod if propiedad_obj else None,
+            'propiedad_dir': propiedad_obj.direccion if propiedad_obj else '',
+            'concepto_cod': concepto_obj.cod if concepto_obj else None,
+            'concepto_nombre': concepto_obj.nombre if concepto_obj else '',
             'concepto_tipo': concepto_obj.tipo if concepto_obj else '',
             'importe': str(importe) if importe else fila.get('importe', ''),
             'moneda_cod': moneda_cod,
-            'moneda_signo': moneda_obj.signo if moneda_obj else fila.get('moneda_cod', ''),
+            'moneda_signo': moneda_obj.signo if moneda_obj else '',
             'observaciones': observaciones,
-            'errores': errores,
-            'categoria_error': categoria_error,
-            'valido': len(errores) == 0,
+            'errores': errores_duros,
+            'necesita_completar': necesita_completar,
+            'valido': len(errores_duros) == 0,
+            'completo': len(errores_duros) == 0 and len(necesita_completar) == 0,
         })
 
     return resultado
@@ -705,7 +697,10 @@ def carga_preview():
         flash('No hay datos pendientes. Subí el archivo nuevamente.', 'warning')
         return redirect(url_for('carga'))
     filas = _pending_imports[token]
-    return render_template('carga_preview.html', filas=filas)
+    propiedades = Propiedad.query.order_by(Propiedad.cod).all()
+    conceptos   = Concepto.query.order_by(Concepto.cod).all()
+    return render_template('carga_preview.html', filas=filas,
+                           propiedades=propiedades, conceptos=conceptos)
 
 
 @app.route('/carga/confirmar', methods=['POST'])
@@ -719,17 +714,40 @@ def carga_confirmar():
     todas = _pending_imports[token]
     seleccionadas = set(request.form.getlist('seleccionado'))
 
+    def _get_cod(fila, campo):
+        """Devuelve el cod del campo: del fila si ya estaba, sino del form."""
+        if fila[campo] is not None:
+            return fila[campo]
+        raw = request.form.get(f'{campo}_{fila["fila"]}', '').strip()
+        try:
+            return int(raw) if raw else None
+        except ValueError:
+            return None
+
+    # Verificar que todos los seleccionados estén completos antes de insertar
+    incompletos = []
+    for fila in todas:
+        if str(fila['fila']) not in seleccionadas or not fila['valido']:
+            continue
+        prop = _get_cod(fila, 'propiedad_cod')
+        conc = _get_cod(fila, 'concepto_cod')
+        if not prop or not conc:
+            incompletos.append(str(fila['fila']))
+
+    if incompletos:
+        flash(f'Completá todos los campos requeridos antes de guardar '
+              f'(filas incompletas: {", ".join(incompletos)}).', 'warning')
+        return redirect(url_for('carga_preview'))
+
     insertados = errores_insert = 0
     for fila in todas:
-        if str(fila['fila']) not in seleccionadas:
-            continue
-        if not fila['valido']:
+        if str(fila['fila']) not in seleccionadas or not fila['valido']:
             continue
         try:
             t = Transaccion(
                 fecha=datetime.strptime(fila['fecha'], '%Y-%m-%d').date(),
-                propiedad_cod=fila['propiedad_cod'],
-                concepto_cod=fila['concepto_cod'],
+                propiedad_cod=_get_cod(fila, 'propiedad_cod'),
+                concepto_cod=_get_cod(fila, 'concepto_cod'),
                 importe=Decimal(fila['importe']),
                 moneda_cod=fila['moneda_cod'],
                 observaciones=fila.get('observaciones', '')

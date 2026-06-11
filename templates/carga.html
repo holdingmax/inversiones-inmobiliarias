@@ -130,11 +130,12 @@
           <div class="card-body p-4">
 
             <div class="alert alert-info mb-4">
-              <p class="mb-1 fw-semibold"><i class="bi bi-info-circle me-1"></i>Columnas requeridas en el archivo:</p>
+              <p class="mb-1 fw-semibold"><i class="bi bi-info-circle me-1"></i>Columnas del archivo:</p>
               <code>fecha &nbsp;·&nbsp; propiedad_cod &nbsp;·&nbsp; concepto_cod &nbsp;·&nbsp; importe &nbsp;·&nbsp; moneda_cod &nbsp;·&nbsp; observaciones</code>
               <hr class="my-2">
               <small>
-                Los códigos deben coincidir con los registros existentes en sus respectivas tablas.<br>
+                <strong>Obligatorias para leer el archivo:</strong> <code>fecha</code>, <code>importe</code>, <code>moneda_cod</code>.<br>
+                Si <code>propiedad_cod</code> o <code>concepto_cod</code> están vacíos, podrás completarlos en la pantalla de revisión.<br>
                 Formato de fecha requerido: <code>DD/MM/AAAA</code> &nbsp;(ej: <code>24/02/2026</code>)
               </small>
               <div class="mt-2">

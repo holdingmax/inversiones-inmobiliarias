@@ -57,6 +57,7 @@
                 <th>Costo Compra</th>
                 <th>Moneda</th>
                 <th>Fecha Compra</th>
+                <th class="text-center">Imagen</th>
                 <th class="text-center">Acciones</th>
               </tr>
             </thead>
@@ -75,6 +76,13 @@
                 <td>{% if p.costo_compra %}{{ '{:,.2f}'.format(p.costo_compra) }}{% else %}—{% endif %}</td>
                 <td>{% if p.moneda_rel %}{{ p.moneda_rel.signo }}{% else %}—{% endif %}</td>
                 <td>{% if p.fecha_compra %}{{ p.fecha_compra.strftime('%d/%m/%Y') }}{% else %}—{% endif %}</td>
+                <td class="text-center">
+                  {% if p.imagen %}
+                    <i class="bi bi-image-fill text-success fs-5" title="Con imagen"></i>
+                  {% else %}
+                    <i class="bi bi-image text-danger fs-5" title="Sin imagen"></i>
+                  {% endif %}
+                </td>
                 <td class="text-center">
                   <button class="btn btn-sm btn-outline-primary me-1 btn-edit-prop"
                     data-cod="{{ p.cod }}"
