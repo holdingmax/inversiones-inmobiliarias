@@ -59,6 +59,9 @@ class Propiedad(db.Model):
     fecha_compra = db.Column(db.Date)
     imagen = db.Column(db.LargeBinary)
     imagen_tipo = db.Column(db.String(50))
+    notas = db.Column(db.String(250))
+    adjunto_notas = db.Column(db.LargeBinary)
+    adjunto_notas_tipo = db.Column(db.String(50))
     moneda_rel = db.relationship('Moneda', foreign_keys=[moneda_cod])
     transacciones = db.relationship('Transaccion', backref='propiedad', lazy=True)
 
@@ -176,6 +179,15 @@ def propiedad_imagen(cod):
     if not prop or not prop.imagen:
         return '', 404
     return Response(prop.imagen, mimetype=prop.imagen_tipo or 'image/jpeg')
+
+
+@app.route('/propiedad/adjunto_notas/<int:cod>')
+@login_required
+def propiedad_adjunto_notas(cod):
+    prop = db.session.get(Propiedad, cod)
+    if not prop or not prop.adjunto_notas:
+        return '', 404
+    return Response(prop.adjunto_notas, mimetype=prop.adjunto_notas_tipo or 'image/jpeg')
 
 
 # ─── Carga de información ─────────────────────────────────────────────────────
@@ -477,6 +489,13 @@ def config_propiedad_add():
         costo_str = request.form.get('costo_compra', '').strip()
         moneda_str = request.form.get('moneda_cod', '').strip()
 
+        adjunto_data = adjunto_tipo = None
+        if 'adjunto_notas' in request.files:
+            fa = request.files['adjunto_notas']
+            if fa and fa.filename:
+                adjunto_data = fa.read()
+                adjunto_tipo = fa.content_type
+
         p = Propiedad(
             direccion=request.form['direccion'].strip()[:50],
             disponible=request.form.get('disponible') == '1',
@@ -484,7 +503,10 @@ def config_propiedad_add():
             moneda_cod=int(moneda_str) if moneda_str else None,
             fecha_compra=datetime.strptime(fecha_str, '%Y-%m-%d').date() if fecha_str else None,
             imagen=imagen_data,
-            imagen_tipo=imagen_tipo
+            imagen_tipo=imagen_tipo,
+            notas=request.form.get('notas', '').strip()[:250] or None,
+            adjunto_notas=adjunto_data,
+            adjunto_notas_tipo=adjunto_tipo,
         )
         db.session.add(p)
         db.session.commit()
@@ -516,6 +538,12 @@ def config_propiedad_edit(cod):
             if f and f.filename:
                 p.imagen = f.read()
                 p.imagen_tipo = f.content_type
+        p.notas = request.form.get('notas', '').strip()[:250] or None
+        if 'adjunto_notas' in request.files:
+            fa = request.files['adjunto_notas']
+            if fa and fa.filename:
+                p.adjunto_notas = fa.read()
+                p.adjunto_notas_tipo = fa.content_type
         db.session.commit()
         flash('Propiedad actualizada correctamente.', 'success')
     except Exception as e:
@@ -1016,12 +1044,18 @@ def carga_template():
 def init_db():
     db.create_all()
     # Migración: agregar moneda_cod a propiedades si no existe (DBs pre-existentes)
-    try:
-        with db.engine.connect() as conn:
-            conn.execute(text('ALTER TABLE propiedades ADD COLUMN moneda_cod INTEGER REFERENCES monedas(cod)'))
-            conn.commit()
-    except Exception:
-        pass  # La columna ya existe
+    for _sql in [
+        'ALTER TABLE propiedades ADD COLUMN moneda_cod INTEGER REFERENCES monedas(cod)',
+        'ALTER TABLE propiedades ADD COLUMN notas VARCHAR(250)',
+        'ALTER TABLE propiedades ADD COLUMN adjunto_notas BLOB',
+        'ALTER TABLE propiedades ADD COLUMN adjunto_notas_tipo VARCHAR(50)',
+    ]:
+        try:
+            with db.engine.connect() as conn:
+                conn.execute(text(_sql))
+                conn.commit()
+        except Exception:
+            pass  # columna ya existe
     # Usuario admin por defecto si no hay ninguno
     if not Usuario.query.first():
         admin = Usuario(

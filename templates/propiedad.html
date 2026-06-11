@@ -30,6 +30,60 @@
 
 {% if prop_sel %}
 
+<!-- Notas de la propiedad -->
+{% if prop_sel.notas or prop_sel.adjunto_notas %}
+<div class="card mb-3" style="border-left:4px solid var(--gold);">
+  <div class="card-body py-3">
+    <div class="d-flex align-items-start justify-content-between gap-3">
+      <div class="flex-grow-1">
+        <div class="info-label mb-1"><i class="bi bi-sticky-fill me-1" style="color:var(--gold);"></i>Notas</div>
+        {% if prop_sel.notas %}
+          <div style="white-space:pre-wrap; font-size:.92rem;">{{ prop_sel.notas }}</div>
+        {% else %}
+          <span class="text-muted fst-italic" style="font-size:.88rem;">Sin notas de texto.</span>
+        {% endif %}
+      </div>
+      {% if prop_sel.adjunto_notas %}
+      <div class="flex-shrink-0">
+        <button type="button" class="btn btn-outline-secondary btn-sm"
+                data-bs-toggle="modal" data-bs-target="#modalAdjunto"
+                title="Ver adjunto de notas">
+          <i class="bi bi-eye-fill me-1"></i>Ver adjunto
+        </button>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Modal adjunto notas -->
+{% if prop_sel.adjunto_notas %}
+<div class="modal fade" id="modalAdjunto" tabindex="-1" aria-labelledby="modalAdjuntoLabel"
+     aria-hidden="true" data-bs-backdrop="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--navy); color:#fff;">
+        <h5 class="modal-title" id="modalAdjuntoLabel">
+          <i class="bi bi-image me-2"></i>Adjunto — {{ prop_sel.direccion }}
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center p-3">
+        <img src="{{ url_for('propiedad_adjunto_notas', cod=prop_sel.cod) }}"
+             alt="Adjunto de notas"
+             style="max-width:100%; max-height:75vh; border-radius:6px; box-shadow:0 2px 12px rgba(0,0,0,.2);">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          <i class="bi bi-x-circle me-1"></i>Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endif %}
+
 <!-- Datos de la propiedad -->
 <div class="card mb-4">
   <div class="card-header-custom">

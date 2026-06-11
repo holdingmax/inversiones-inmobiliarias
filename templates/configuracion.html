@@ -92,6 +92,8 @@
                     data-moneda="{{ p.moneda_cod or '' }}"
                     data-fecha="{{ p.fecha_compra.isoformat() if p.fecha_compra else '' }}"
                     data-tiene-imagen="{{ 'true' if p.imagen else 'false' }}"
+                    data-notas="{{ p.notas or '' }}"
+                    data-tiene-adjunto="{{ 'true' if p.adjunto_notas else 'false' }}"
                     data-bs-toggle="modal" data-bs-target="#editPropModal"
                     title="Editar">
                     <i class="bi bi-pencil-fill"></i>
@@ -366,6 +368,15 @@
               <input type="file" name="imagen" class="form-control" accept="image/*">
             </div>
           </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Notas <small class="text-muted fw-normal">(máx. 250 caracteres)</small></label>
+            <textarea name="notas" class="form-control" rows="3" maxlength="250"
+                      placeholder="Anotaciones permanentes sobre la propiedad..."></textarea>
+          </div>
+          <div class="mb-2">
+            <label class="form-label fw-semibold">Adjunto Notas <small class="text-muted fw-normal">(imagen)</small></label>
+            <input type="file" name="adjunto_notas" class="form-control" accept="image/*">
+          </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -529,6 +540,16 @@
               <input type="file" name="imagen" class="form-control" accept="image/*">
               <small id="editPropImgNote" class="text-muted"></small>
             </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Notas <small class="text-muted fw-normal">(máx. 250 caracteres)</small></label>
+            <textarea name="notas" id="editPropNotas" class="form-control" rows="3" maxlength="250"
+                      placeholder="Anotaciones permanentes sobre la propiedad..."></textarea>
+          </div>
+          <div class="mb-2">
+            <label class="form-label fw-semibold">Adjunto Notas <small class="text-muted fw-normal">(imagen, opcional — reemplaza el actual)</small></label>
+            <input type="file" name="adjunto_notas" class="form-control" accept="image/*">
+            <small id="editPropAdjNote" class="text-muted"></small>
           </div>
         </div>
         <div class="modal-footer">
@@ -711,6 +732,11 @@
         btn.dataset.tieneImagen === 'true'
           ? 'Ya tiene imagen. Dejá vacío para mantenerla.'
           : 'Sin imagen actual.';
+      document.getElementById('editPropNotas').value = btn.dataset.notas || '';
+      document.getElementById('editPropAdjNote').textContent =
+        btn.dataset.tieneAdjunto === 'true'
+          ? 'Ya tiene adjunto. Dejá vacío para mantenerlo.'
+          : 'Sin adjunto actual.';
     });
   });
 
