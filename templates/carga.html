@@ -16,6 +16,11 @@
       <i class="bi bi-file-earmark-spreadsheet-fill me-1"></i>Carga Masiva (Excel / CSV)
     </a>
   </li>
+  <li class="nav-item">
+    <a class="nav-link" data-bs-toggle="tab" href="#preparar" role="tab">
+      <i class="bi bi-tools me-1"></i>Preparar Archivo
+    </a>
+  </li>
 </ul>
 
 <div class="tab-content">
@@ -181,6 +186,49 @@
               </div>
             </form>
 
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB: Preparar archivo ─────────────────────────────── -->
+  <div class="tab-pane fade" id="preparar" role="tabpanel">
+    <div class="row justify-content-center">
+      <div class="col-lg-7">
+        <div class="card mb-4">
+          <div class="card-header-custom">
+            <i class="bi bi-tools me-2"></i>Preparar Archivo para Carga Masiva
+          </div>
+          <div class="card-body p-4">
+            <div class="alert alert-info mb-4">
+              <p class="mb-1 fw-semibold"><i class="bi bi-info-circle me-1"></i>¿Para qué sirve?</p>
+              <small>
+                Subí cualquier archivo Excel con cualquier estructura de columnas.
+                En la siguiente pantalla vas a indicar qué columna del archivo corresponde
+                a cada campo del sistema. También podés fijar un mismo valor para
+                <code>propiedad</code>, <code>concepto</code> o <code>moneda</code>
+                para todos los registros. El resultado es un CSV listo para la
+                pestaña <strong>Carga Masiva</strong>.
+              </small>
+            </div>
+            <form method="POST" action="{{ url_for('carga_preparar_upload') }}"
+                  enctype="multipart/form-data">
+              <div class="mb-4">
+                <label class="form-label fw-semibold">
+                  Seleccioná el archivo <span class="text-danger">*</span>
+                </label>
+                <input type="file" name="archivo_prep" class="form-control form-control-lg"
+                       accept=".xlsx,.xls,.csv" required>
+                <div class="form-text">Formatos aceptados: Excel (.xlsx, .xls) o CSV (.csv)</div>
+              </div>
+              <div class="d-grid">
+                <button type="submit" class="btn btn-lg"
+                        style="background:var(--navy); color:#fff; font-weight:600;">
+                  <i class="bi bi-arrow-right-circle-fill me-2"></i>Leer archivo y mapear columnas
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       </div>

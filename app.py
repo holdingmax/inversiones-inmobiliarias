@@ -21,6 +21,7 @@ except ImportError:
 
 # Almacenamiento temporal de imports pendientes (en memoria, válido para instancia única)
 _pending_imports: dict = {}
+_pending_mapper:  dict = {}
 
 COLUMNAS_REQUERIDAS = {'fecha', 'importe', 'moneda_cod'}  # mínimo para leer el archivo
 FORMATOS_FECHA = ('%d/%m/%Y',)  # Único formato aceptado: DD/MM/AAAA
@@ -1139,6 +1140,109 @@ def carga_template():
         contenido,
         mimetype='text/csv',
         headers={'Content-Disposition': 'attachment;filename=plantilla_transacciones.csv'}
+    )
+
+
+# ─── Preparador de archivos para carga masiva ────────────────────────────────
+
+@app.route('/carga/preparar_upload', methods=['POST'])
+@login_required
+def carga_preparar_upload():
+    if not PANDAS_OK:
+        flash('pandas no disponible.', 'danger')
+        return redirect(url_for('carga'))
+    f = request.files.get('archivo_prep')
+    if not f or not f.filename:
+        flash('Seleccioná un archivo Excel.', 'danger')
+        return redirect(url_for('carga'))
+    nombre = f.filename.lower()
+    try:
+        if nombre.endswith(('.xlsx', '.xls')):
+            df = pd.read_excel(f, dtype=str, header=0)
+        elif nombre.endswith('.csv'):
+            content = f.read().decode('utf-8-sig')
+            df = pd.read_csv(io.StringIO(content), dtype=str, header=0)
+        else:
+            flash('Formato no soportado. Usá Excel o CSV.', 'danger')
+            return redirect(url_for('carga'))
+        df.columns = [str(c).strip() for c in df.columns]
+        df = df.where(pd.notna(df), '')
+        filas    = df.to_dict(orient='records')
+        columnas = list(df.columns)
+        token = str(uuid.uuid4())
+        _pending_mapper[token] = {'filas': filas, 'columnas': columnas}
+        return redirect(url_for('carga_preparar_mapeo', token=token))
+    except Exception as e:
+        flash(f'Error al leer el archivo: {e}', 'danger')
+        return redirect(url_for('carga'))
+
+
+@app.route('/carga/preparar_mapeo')
+@login_required
+def carga_preparar_mapeo():
+    token = request.args.get('token', '')
+    datos = _pending_mapper.get(token)
+    if not datos:
+        flash('Sesión expirada. Subí el archivo nuevamente.', 'warning')
+        return redirect(url_for('carga'))
+    return render_template('preparar_mapeo.html',
+                           token=token,
+                           columnas=datos['columnas'],
+                           total_filas=len(datos['filas']),
+                           propiedades=Propiedad.query.order_by(Propiedad.direccion).all(),
+                           conceptos=Concepto.query.order_by(Concepto.nombre).all(),
+                           monedas=Moneda.query.order_by(Moneda.nombre).all())
+
+
+@app.route('/carga/preparar_procesar', methods=['POST'])
+@login_required
+def carga_preparar_procesar():
+    token = request.form.get('token', '')
+    datos = _pending_mapper.get(token)
+    if not datos:
+        flash('Sesión expirada. Subí el archivo nuevamente.', 'warning')
+        return redirect(url_for('carga'))
+
+    filas = datos['filas']
+
+    map_fecha    = request.form.get('map_fecha', '')
+    map_importe  = request.form.get('map_importe', '')
+    map_obs      = request.form.get('map_observaciones', '')
+    map_prop     = request.form.get('map_propiedad_cod', '')
+    map_concepto = request.form.get('map_concepto_cod', '')
+    map_moneda   = request.form.get('map_moneda_cod', '')
+
+    global_prop     = request.form.get('global_propiedad_cod', '')
+    global_concepto = request.form.get('global_concepto_cod', '')
+    global_moneda   = request.form.get('global_moneda_cod', '')
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(['fecha', 'propiedad_cod', 'concepto_cod', 'importe', 'moneda_cod', 'observaciones'])
+
+    for fila in filas:
+        fecha_val   = str(fila.get(map_fecha, '')   if map_fecha   else '').strip()
+        obs_val     = str(fila.get(map_obs, '')     if map_obs     else '').strip()[:50]
+
+        # importe: quitar signo negativo
+        raw_imp = str(fila.get(map_importe, '') if map_importe else '').strip()
+        try:
+            importe_val = str(abs(float(raw_imp.replace(',', '.'))))
+        except Exception:
+            importe_val = raw_imp
+
+        prop_val    = global_prop     or (str(fila.get(map_prop, '')     if map_prop     else '').strip())
+        conc_val    = global_concepto or (str(fila.get(map_concepto, '') if map_concepto else '').strip())
+        mon_val     = global_moneda   or (str(fila.get(map_moneda, '')   if map_moneda   else '').strip())
+
+        writer.writerow([fecha_val, prop_val, conc_val, importe_val, mon_val, obs_val])
+
+    _pending_mapper.pop(token, None)
+
+    return Response(
+        buf.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=archivo_preparado.csv'}
     )
 
 

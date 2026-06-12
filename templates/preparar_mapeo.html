@@ -1,0 +1,166 @@
+{% extends 'base.html' %}
+{% block title %}Preparar Archivo — Inversiones Inmobiliarias{% endblock %}
+
+{% block content %}
+<h3 class="section-title">Preparar Archivo para Carga Masiva</h3>
+
+<div class="alert alert-info mb-4">
+  <i class="bi bi-file-earmark-spreadsheet me-2"></i>
+  Archivo leído correctamente: <strong>{{ total_filas }} filas</strong> detectadas.
+  Columnas encontradas: <code>{{ columnas | join(', ') }}</code>
+</div>
+
+<form method="POST" action="{{ url_for('carga_preparar_procesar') }}">
+  <input type="hidden" name="token" value="{{ token }}">
+
+  <!-- Mapeo de columnas -->
+  <div class="card mb-4">
+    <div class="card-header-custom">
+      <i class="bi bi-arrow-left-right me-2"></i>Mapeo de Columnas
+    </div>
+    <div class="card-body">
+      <p class="text-muted mb-3" style="font-size:.9rem;">
+        Para cada campo del sistema, indicá qué columna del archivo le corresponde.
+        Dejá en blanco si el campo no está en el archivo.
+      </p>
+      <div class="table-responsive">
+        <table class="table table-bordered align-middle mb-0">
+          <thead style="background:var(--navy); color:#fff;">
+            <tr>
+              <th style="width:220px;">Campo del sistema</th>
+              <th>Columna del archivo</th>
+              <th style="width:320px;" class="text-center">Valor global (aplica a todos los registros)</th>
+            </tr>
+          </thead>
+          <tbody>
+
+            <!-- fecha -->
+            <tr>
+              <td><strong>fecha</strong> <span class="text-danger">*</span><br>
+                <small class="text-muted">Formato DD/MM/AAAA</small></td>
+              <td>
+                <select name="map_fecha" class="form-select form-select-sm">
+                  <option value="">— No mapear —</option>
+                  {% for col in columnas %}
+                    <option value="{{ col }}">{{ col }}</option>
+                  {% endfor %}
+                </select>
+              </td>
+              <td></td>
+            </tr>
+
+            <!-- importe -->
+            <tr>
+              <td><strong>importe</strong> <span class="text-danger">*</span><br>
+                <small class="text-muted">Valores negativos se convierten a positivos</small></td>
+              <td>
+                <select name="map_importe" class="form-select form-select-sm">
+                  <option value="">— No mapear —</option>
+                  {% for col in columnas %}
+                    <option value="{{ col }}">{{ col }}</option>
+                  {% endfor %}
+                </select>
+              </td>
+              <td></td>
+            </tr>
+
+            <!-- propiedad_cod -->
+            <tr class="table-light">
+              <td><strong>propiedad_cod</strong></td>
+              <td>
+                <select name="map_propiedad_cod" class="form-select form-select-sm">
+                  <option value="">— No mapear —</option>
+                  {% for col in columnas %}
+                    <option value="{{ col }}">{{ col }}</option>
+                  {% endfor %}
+                </select>
+              </td>
+              <td>
+                <select name="global_propiedad_cod" class="form-select form-select-sm">
+                  <option value="">— Tomar del archivo —</option>
+                  {% for p in propiedades %}
+                    <option value="{{ p.cod }}">{{ p.direccion }}</option>
+                  {% endfor %}
+                </select>
+                <small class="text-muted">Si se elige un valor global, reemplaza al del archivo.</small>
+              </td>
+            </tr>
+
+            <!-- concepto_cod -->
+            <tr class="table-light">
+              <td><strong>concepto_cod</strong></td>
+              <td>
+                <select name="map_concepto_cod" class="form-select form-select-sm">
+                  <option value="">— No mapear —</option>
+                  {% for col in columnas %}
+                    <option value="{{ col }}">{{ col }}</option>
+                  {% endfor %}
+                </select>
+              </td>
+              <td>
+                <select name="global_concepto_cod" class="form-select form-select-sm">
+                  <option value="">— Tomar del archivo —</option>
+                  {% for c in conceptos %}
+                    <option value="{{ c.cod }}">[{{ c.tipo | capitalize }}] {{ c.nombre }}</option>
+                  {% endfor %}
+                </select>
+                <small class="text-muted">Si se elige un valor global, reemplaza al del archivo.</small>
+              </td>
+            </tr>
+
+            <!-- moneda_cod -->
+            <tr class="table-light">
+              <td><strong>moneda_cod</strong></td>
+              <td>
+                <select name="map_moneda_cod" class="form-select form-select-sm">
+                  <option value="">— No mapear —</option>
+                  {% for col in columnas %}
+                    <option value="{{ col }}">{{ col }}</option>
+                  {% endfor %}
+                </select>
+              </td>
+              <td>
+                <select name="global_moneda_cod" class="form-select form-select-sm">
+                  <option value="">— Tomar del archivo —</option>
+                  {% for m in monedas %}
+                    <option value="{{ m.cod }}">{{ m.nombre }} ({{ m.signo }})</option>
+                  {% endfor %}
+                </select>
+                <small class="text-muted">Si se elige un valor global, reemplaza al del archivo.</small>
+              </td>
+            </tr>
+
+            <!-- observaciones -->
+            <tr>
+              <td><strong>observaciones</strong><br>
+                <small class="text-muted">Máx. 50 caracteres</small></td>
+              <td>
+                <select name="map_observaciones" class="form-select form-select-sm">
+                  <option value="">— No mapear —</option>
+                  {% for col in columnas %}
+                    <option value="{{ col }}">{{ col }}</option>
+                  {% endfor %}
+                </select>
+              </td>
+              <td></td>
+            </tr>
+
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Botones -->
+  <div class="d-flex gap-3">
+    <button type="submit" class="btn btn-lg px-5"
+            style="background:var(--navy); color:#fff; font-weight:600;">
+      <i class="bi bi-download me-2"></i>Generar CSV para Carga Masiva
+    </button>
+    <a href="{{ url_for('carga') }}" class="btn btn-lg btn-outline-secondary">
+      <i class="bi bi-x-circle me-1"></i>Cancelar
+    </a>
+  </div>
+
+</form>
+{% endblock %}
