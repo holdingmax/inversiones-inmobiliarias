@@ -1154,12 +1154,41 @@ def config_transacciones():
     propiedades  = Propiedad.query.order_by(Propiedad.direccion).all()
     conceptos    = Concepto.query.order_by(Concepto.nombre).all()
     monedas      = Moneda.query.order_by(Moneda.nombre).all()
-    prop_filtro  = request.args.get('prop', type=int)
-    pagina       = request.args.get('pagina', 1, type=int)
+
+    prop_filtro    = request.args.get('prop',           type=int)
+    concepto_filtro= request.args.get('concepto',       type=int)
+    fecha_desde    = request.args.get('fecha_desde',    '').strip()
+    fecha_hasta    = request.args.get('fecha_hasta',    '').strip()
+    importe_desde  = request.args.get('importe_desde',  '').strip()
+    importe_hasta  = request.args.get('importe_hasta',  '').strip()
+    pagina         = request.args.get('pagina', 1, type=int)
 
     q = Transaccion.query
     if prop_filtro:
         q = q.filter_by(propiedad_cod=prop_filtro)
+    if concepto_filtro:
+        q = q.filter_by(concepto_cod=concepto_filtro)
+    if fecha_desde:
+        try:
+            q = q.filter(Transaccion.fecha >= datetime.strptime(fecha_desde, '%Y-%m-%d').date())
+        except ValueError:
+            pass
+    if fecha_hasta:
+        try:
+            q = q.filter(Transaccion.fecha <= datetime.strptime(fecha_hasta, '%Y-%m-%d').date())
+        except ValueError:
+            pass
+    if importe_desde:
+        try:
+            q = q.filter(Transaccion.importe >= Decimal(importe_desde))
+        except Exception:
+            pass
+    if importe_hasta:
+        try:
+            q = q.filter(Transaccion.importe <= Decimal(importe_hasta))
+        except Exception:
+            pass
+
     q = q.order_by(Transaccion.fecha.desc(), Transaccion.id.desc())
 
     total_tx      = q.count()
@@ -1173,6 +1202,11 @@ def config_transacciones():
                            monedas=monedas,
                            transacciones=transacciones,
                            prop_filtro=prop_filtro,
+                           concepto_filtro=concepto_filtro,
+                           fecha_desde=fecha_desde,
+                           fecha_hasta=fecha_hasta,
+                           importe_desde=importe_desde,
+                           importe_hasta=importe_hasta,
                            pagina=pagina,
                            total_paginas=total_paginas,
                            total_tx=total_tx,
@@ -1198,9 +1232,19 @@ def config_transaccion_editar(tx_id):
     except Exception as e:
         db.session.rollback()
         flash(f'Error al actualizar: {e}', 'danger')
-    return redirect(url_for('config_transacciones',
-                            prop=request.form.get('prop_filtro', ''),
-                            pagina=request.form.get('pagina', 1)))
+    return redirect(url_for('config_transacciones', **_filtros_tx_from_form()))
+
+
+def _filtros_tx_from_form():
+    return {
+        'prop':           request.form.get('prop_filtro',     ''),
+        'concepto':       request.form.get('concepto_filtro', ''),
+        'fecha_desde':    request.form.get('fecha_desde',     ''),
+        'fecha_hasta':    request.form.get('fecha_hasta',     ''),
+        'importe_desde':  request.form.get('importe_desde',   ''),
+        'importe_hasta':  request.form.get('importe_hasta',   ''),
+        'pagina':         request.form.get('pagina',          1),
+    }
 
 
 @app.route('/config/transaccion/<int:tx_id>/eliminar', methods=['POST'])
@@ -1217,9 +1261,7 @@ def config_transaccion_eliminar(tx_id):
     except Exception as e:
         db.session.rollback()
         flash(f'Error al eliminar: {e}', 'danger')
-    return redirect(url_for('config_transacciones',
-                            prop=request.form.get('prop_filtro', ''),
-                            pagina=request.form.get('pagina', 1)))
+    return redirect(url_for('config_transacciones', **_filtros_tx_from_form()))
 
 
 # ─── Preparador de archivos para carga masiva ────────────────────────────────

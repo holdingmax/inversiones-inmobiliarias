@@ -17,30 +17,78 @@
   {% endfor %}
 {% endwith %}
 
-<!-- Filtro -->
+<!-- Filtros -->
 <div class="card mb-3">
   <div class="card-body py-3">
-    <form method="GET" action="{{ url_for('config_transacciones') }}" class="row g-2 align-items-end">
-      <div class="col-md-5">
-        <label class="form-label info-label mb-1">Filtrar por propiedad</label>
-        <select name="prop" class="form-select form-select-sm" onchange="this.form.submit()">
-          <option value="">— Todas las propiedades —</option>
-          {% for p in propiedades %}
-            <option value="{{ p.cod }}" {% if prop_filtro == p.cod %}selected{% endif %}>
-              {{ p.direccion }}
-            </option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-auto">
-        <a href="{{ url_for('config_transacciones') }}" class="btn btn-sm btn-outline-secondary">
-          <i class="bi bi-x-circle me-1"></i>Limpiar
-        </a>
-      </div>
-      <div class="col-auto ms-auto">
-        <span class="text-muted" style="font-size:.88rem;">
-          {{ total_tx }} transaccion{{ 'es' if total_tx != 1 else '' }} encontrada{{ 's' if total_tx != 1 else '' }}
-        </span>
+    <form method="GET" action="{{ url_for('config_transacciones') }}" id="formFiltros">
+      <input type="hidden" name="pagina" value="1">
+      <div class="row g-2 align-items-end">
+
+        <!-- Propiedad -->
+        <div class="col-md-4">
+          <label class="form-label info-label mb-1">Propiedad</label>
+          <select name="prop" class="form-select form-select-sm">
+            <option value="">— Todas —</option>
+            {% for p in propiedades %}
+              <option value="{{ p.cod }}" {% if prop_filtro == p.cod %}selected{% endif %}>
+                {{ p.direccion }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Concepto -->
+        <div class="col-md-3">
+          <label class="form-label info-label mb-1">Concepto</label>
+          <select name="concepto" class="form-select form-select-sm">
+            <option value="">— Todos —</option>
+            {% for c in conceptos %}
+              <option value="{{ c.cod }}" {% if concepto_filtro == c.cod %}selected{% endif %}>
+                {{ c.nombre }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Fecha desde/hasta -->
+        <div class="col-md-2">
+          <label class="form-label info-label mb-1">Fecha desde</label>
+          <input type="date" name="fecha_desde" class="form-control form-control-sm"
+                 value="{{ fecha_desde }}">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label info-label mb-1">Fecha hasta</label>
+          <input type="date" name="fecha_hasta" class="form-control form-control-sm"
+                 value="{{ fecha_hasta }}">
+        </div>
+
+        <!-- Botones primera fila -->
+        <div class="col-md-1 d-flex gap-1">
+          <button type="submit" class="btn btn-sm" style="background:var(--navy);color:#fff;"
+                  title="Filtrar"><i class="bi bi-search"></i></button>
+          <a href="{{ url_for('config_transacciones') }}" class="btn btn-sm btn-outline-secondary"
+             title="Limpiar"><i class="bi bi-x-circle"></i></a>
+        </div>
+
+        <!-- Importe desde/hasta -->
+        <div class="col-md-2">
+          <label class="form-label info-label mb-1">Importe desde</label>
+          <input type="number" name="importe_desde" class="form-control form-control-sm"
+                 placeholder="0.00" step="0.01" min="0" value="{{ importe_desde }}">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label info-label mb-1">Importe hasta</label>
+          <input type="number" name="importe_hasta" class="form-control form-control-sm"
+                 placeholder="0.00" step="0.01" min="0" value="{{ importe_hasta }}">
+        </div>
+
+        <!-- Contador -->
+        <div class="col-md-8 d-flex align-items-end">
+          <span class="text-muted" style="font-size:.88rem;">
+            <strong>{{ total_tx }}</strong> registro{{ 's' if total_tx != 1 else '' }} encontrado{{ 's' if total_tx != 1 else '' }}
+          </span>
+        </div>
+
       </div>
     </form>
   </div>
@@ -109,9 +157,9 @@
 <!-- Paginación -->
 {% if total_paginas > 1 %}
 <div class="d-flex justify-content-center align-items-center gap-1 mt-3 flex-wrap">
-  <a href="{{ url_for('config_transacciones', prop=prop_filtro or '', pagina=1) }}"
+  <a href="{{ url_for('config_transacciones', prop=prop_filtro or '', concepto=concepto_filtro or '', fecha_desde=fecha_desde, fecha_hasta=fecha_hasta, importe_desde=importe_desde, importe_hasta=importe_hasta, pagina=1) }}"
      class="btn btn-sm btn-outline-secondary {% if pagina == 1 %}disabled{% endif %}">&laquo;</a>
-  <a href="{{ url_for('config_transacciones', prop=prop_filtro or '', pagina=pagina-1) }}"
+  <a href="{{ url_for('config_transacciones', prop=prop_filtro or '', concepto=concepto_filtro or '', fecha_desde=fecha_desde, fecha_hasta=fecha_hasta, importe_desde=importe_desde, importe_hasta=importe_hasta, pagina=pagina-1) }}"
      class="btn btn-sm btn-outline-secondary {% if pagina == 1 %}disabled{% endif %}">&lsaquo;</a>
 
   {% for p in paginas_visibles %}
@@ -120,22 +168,22 @@
     {% elif p == pagina %}
       <span class="btn btn-sm" style="background:var(--navy);color:#fff;min-width:36px;">{{ p }}</span>
     {% else %}
-      <a href="{{ url_for('config_transacciones', prop=prop_filtro or '', pagina=p) }}"
+      <a href="{{ url_for('config_transacciones', prop=prop_filtro or '', concepto=concepto_filtro or '', fecha_desde=fecha_desde, fecha_hasta=fecha_hasta, importe_desde=importe_desde, importe_hasta=importe_hasta, pagina=p) }}"
          class="btn btn-sm btn-outline-secondary" style="min-width:36px;">{{ p }}</a>
     {% endif %}
   {% endfor %}
 
-  <a href="{{ url_for('config_transacciones', prop=prop_filtro or '', pagina=pagina+1) }}"
+  <a href="{{ url_for('config_transacciones', prop=prop_filtro or '', concepto=concepto_filtro or '', fecha_desde=fecha_desde, fecha_hasta=fecha_hasta, importe_desde=importe_desde, importe_hasta=importe_hasta, pagina=pagina+1) }}"
      class="btn btn-sm btn-outline-secondary {% if pagina == total_paginas %}disabled{% endif %}">&rsaquo;</a>
-  <a href="{{ url_for('config_transacciones', prop=prop_filtro or '', pagina=total_paginas) }}"
+  <a href="{{ url_for('config_transacciones', prop=prop_filtro or '', concepto=concepto_filtro or '', fecha_desde=fecha_desde, fecha_hasta=fecha_hasta, importe_desde=importe_desde, importe_hasta=importe_hasta, pagina=total_paginas) }}"
      class="btn btn-sm btn-outline-secondary {% if pagina == total_paginas %}disabled{% endif %}">&raquo;</a>
   <span class="text-muted ms-2" style="font-size:.85rem;">Página {{ pagina }} de {{ total_paginas }}</span>
 </div>
 {% endif %}
 
 {% else %}
-<div class="alert alert-info">
-  <i class="bi bi-info-circle me-2"></i>No hay transacciones{% if prop_filtro %} para la propiedad seleccionada{% endif %}.
+<div class="alert alert-info mt-2">
+  <i class="bi bi-info-circle me-2"></i>No hay transacciones que coincidan con los filtros aplicados.
 </div>
 {% endif %}
 
@@ -149,10 +197,15 @@
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <form method="POST" action="" id="formEditar">
-        <input type="hidden" name="prop_filtro" value="{{ prop_filtro or '' }}">
-        <input type="hidden" name="pagina"      value="{{ pagina }}">
+        <!-- Preservar filtros activos -->
+        <input type="hidden" name="prop_filtro"      value="{{ prop_filtro or '' }}">
+        <input type="hidden" name="concepto_filtro"  value="{{ concepto_filtro or '' }}">
+        <input type="hidden" name="fecha_desde"      value="{{ fecha_desde }}">
+        <input type="hidden" name="fecha_hasta"      value="{{ fecha_hasta }}">
+        <input type="hidden" name="importe_desde"    value="{{ importe_desde }}">
+        <input type="hidden" name="importe_hasta"    value="{{ importe_hasta }}">
+        <input type="hidden" name="pagina"           value="{{ pagina }}">
         <div class="modal-body">
-
           <div class="row g-3">
             <div class="col-sm-6">
               <label class="form-label fw-semibold">Fecha <span class="text-danger">*</span></label>
@@ -189,11 +242,9 @@
             </div>
             <div class="col-12">
               <label class="form-label fw-semibold">Observaciones</label>
-              <input type="text" name="observaciones" id="editObs" class="form-control"
-                     maxlength="50">
+              <input type="text" name="observaciones" id="editObs" class="form-control" maxlength="50">
             </div>
           </div>
-
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -218,15 +269,18 @@
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body text-center py-4">
-        <p class="fw-bold fs-5 mb-0">
-          ¿ESTÁ SEGURO QUE DESEA ELIMINAR ESTE REGISTRO?
-        </p>
+        <p class="fw-bold fs-5 mb-0">¿ESTÁ SEGURO QUE DESEA ELIMINAR ESTE REGISTRO?</p>
         <p class="text-muted mt-2 mb-0" style="font-size:.9rem;">Esta acción no se puede deshacer.</p>
       </div>
       <div class="modal-footer justify-content-center gap-3 border-0 pb-4">
         <form method="POST" action="" id="formEliminar">
-          <input type="hidden" name="prop_filtro" value="{{ prop_filtro or '' }}">
-          <input type="hidden" name="pagina"      value="{{ pagina }}">
+          <input type="hidden" name="prop_filtro"      value="{{ prop_filtro or '' }}">
+          <input type="hidden" name="concepto_filtro"  value="{{ concepto_filtro or '' }}">
+          <input type="hidden" name="fecha_desde"      value="{{ fecha_desde }}">
+          <input type="hidden" name="fecha_hasta"      value="{{ fecha_hasta }}">
+          <input type="hidden" name="importe_desde"    value="{{ importe_desde }}">
+          <input type="hidden" name="importe_hasta"    value="{{ importe_hasta }}">
+          <input type="hidden" name="pagina"           value="{{ pagina }}">
           <button type="submit" class="btn px-5 fw-bold"
                   style="background:#198754; color:#fff; min-width:100px; font-size:1.05rem;">
             SI
@@ -247,8 +301,8 @@
 <script>
   function abrirEditar(id, fecha, propCod, concCod, importe, monCod, obs) {
     document.getElementById('formEditar').action = `/config/transaccion/${id}/editar`;
-    document.getElementById('editFecha').value    = fecha;
-    document.getElementById('editImporte').value  = importe;
+    document.getElementById('editFecha').value     = fecha;
+    document.getElementById('editImporte').value   = importe;
     document.getElementById('editPropiedad').value = propCod;
     document.getElementById('editConcepto').value  = concCod;
     document.getElementById('editMoneda').value    = monCod;
