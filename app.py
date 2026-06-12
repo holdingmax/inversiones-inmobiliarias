@@ -1143,6 +1143,85 @@ def carga_template():
     )
 
 
+# ─── Gestión de transacciones desde Configuración ───────────────────────────
+
+_TX_PAGE_SIZE = 30
+
+
+@app.route('/config/transacciones')
+@login_required
+def config_transacciones():
+    propiedades  = Propiedad.query.order_by(Propiedad.direccion).all()
+    conceptos    = Concepto.query.order_by(Concepto.nombre).all()
+    monedas      = Moneda.query.order_by(Moneda.nombre).all()
+    prop_filtro  = request.args.get('prop', type=int)
+    pagina       = request.args.get('pagina', 1, type=int)
+
+    q = Transaccion.query
+    if prop_filtro:
+        q = q.filter_by(propiedad_cod=prop_filtro)
+    q = q.order_by(Transaccion.fecha.desc(), Transaccion.id.desc())
+
+    total_tx      = q.count()
+    total_paginas = max(1, (total_tx + _TX_PAGE_SIZE - 1) // _TX_PAGE_SIZE)
+    pagina        = max(1, min(pagina, total_paginas))
+    transacciones = q.offset((pagina - 1) * _TX_PAGE_SIZE).limit(_TX_PAGE_SIZE).all()
+
+    return render_template('config_transacciones.html',
+                           propiedades=propiedades,
+                           conceptos=conceptos,
+                           monedas=monedas,
+                           transacciones=transacciones,
+                           prop_filtro=prop_filtro,
+                           pagina=pagina,
+                           total_paginas=total_paginas,
+                           total_tx=total_tx,
+                           paginas_visibles=_paginas_visibles(pagina, total_paginas))
+
+
+@app.route('/config/transaccion/<int:tx_id>/editar', methods=['POST'])
+@login_required
+def config_transaccion_editar(tx_id):
+    t = db.session.get(Transaccion, tx_id)
+    if not t:
+        flash('Transacción no encontrada.', 'danger')
+        return redirect(url_for('config_transacciones'))
+    try:
+        t.fecha         = datetime.strptime(request.form['fecha'], '%Y-%m-%d').date()
+        t.propiedad_cod = int(request.form['propiedad_cod'])
+        t.concepto_cod  = int(request.form['concepto_cod'])
+        t.importe       = Decimal(request.form['importe'])
+        t.moneda_cod    = int(request.form['moneda_cod'])
+        t.observaciones = request.form.get('observaciones', '').strip()[:50]
+        db.session.commit()
+        flash('Transacción actualizada correctamente.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error al actualizar: {e}', 'danger')
+    return redirect(url_for('config_transacciones',
+                            prop=request.form.get('prop_filtro', ''),
+                            pagina=request.form.get('pagina', 1)))
+
+
+@app.route('/config/transaccion/<int:tx_id>/eliminar', methods=['POST'])
+@login_required
+def config_transaccion_eliminar(tx_id):
+    t = db.session.get(Transaccion, tx_id)
+    if not t:
+        flash('Transacción no encontrada.', 'danger')
+        return redirect(url_for('config_transacciones'))
+    try:
+        db.session.delete(t)
+        db.session.commit()
+        flash('Transacción eliminada correctamente.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error al eliminar: {e}', 'danger')
+    return redirect(url_for('config_transacciones',
+                            prop=request.form.get('prop_filtro', ''),
+                            pagina=request.form.get('pagina', 1)))
+
+
 # ─── Preparador de archivos para carga masiva ────────────────────────────────
 
 @app.route('/carga/preparar_upload', methods=['POST'])
