@@ -274,8 +274,13 @@ def carga():
 
     if request.method == 'POST':
         try:
-            propiedad_cod = int(request.form['propiedad_cod'])
-            moneda_cod    = int(request.form['moneda_cod'])
+            propiedad_cod = int(request.form.get('propiedad_cod', 0) or 0)
+            moneda_cod    = request.form.get('moneda_cod', type=int)
+            if not moneda_cod and propiedad_cod:
+                _p = db.session.get(Propiedad, propiedad_cod)
+                moneda_cod = _p.moneda_cod if _p else None
+            if not moneda_cod:
+                raise ValueError('Seleccioná una moneda.')
             prop = db.session.get(Propiedad, propiedad_cod)
             if prop and prop.moneda_cod and prop.moneda_cod != moneda_cod:
                 moneda_prop = Moneda.query.get(prop.moneda_cod)

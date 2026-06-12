@@ -208,10 +208,13 @@
       const moneda = monedaPorPropiedad[this.value];
       if (moneda) {
         selMoneda.value = moneda;
-        selMoneda.disabled = true;
+        selMoneda.style.pointerEvents = 'none';
+        selMoneda.style.backgroundColor = '#e9ecef';
+        selMoneda.style.opacity = '1';
         if (hint) hint.textContent = 'Moneda fijada por la propiedad seleccionada.';
       } else {
-        selMoneda.disabled = false;
+        selMoneda.style.pointerEvents = '';
+        selMoneda.style.backgroundColor = '';
         if (hint) hint.textContent = '';
       }
     });
