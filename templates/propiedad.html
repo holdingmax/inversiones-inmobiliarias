@@ -302,16 +302,13 @@
 {% if total_paginas > 1 %}
 <div class="d-flex justify-content-center align-items-center gap-1 mt-3 flex-wrap">
 
-  {# Helpers para armar URLs conservando filtros #}
-  {% set base_args = {'cod': prop_sel.cod, 'auditado': filtro_audit, 'obs': filtro_obs} %}
-
   <!-- << Primera -->
-  <a href="{{ url_for('propiedad', **base_args, pagina=1) }}"
+  <a href="{{ url_for('propiedad', cod=prop_sel.cod, auditado=filtro_audit, obs=filtro_obs, pagina=1) }}"
      class="btn btn-sm btn-outline-secondary {% if pagina == 1 %}disabled{% endif %}"
      title="Primera página">&laquo;</a>
 
   <!-- < Anterior -->
-  <a href="{{ url_for('propiedad', **base_args, pagina=pagina-1) }}"
+  <a href="{{ url_for('propiedad', cod=prop_sel.cod, auditado=filtro_audit, obs=filtro_obs, pagina=pagina-1) }}"
      class="btn btn-sm btn-outline-secondary {% if pagina == 1 %}disabled{% endif %}"
      title="Página anterior">&lsaquo;</a>
 
@@ -322,18 +319,18 @@
     {% elif p == pagina %}
       <span class="btn btn-sm" style="background:var(--navy); color:#fff; min-width:36px;">{{ p }}</span>
     {% else %}
-      <a href="{{ url_for('propiedad', **base_args, pagina=p) }}"
+      <a href="{{ url_for('propiedad', cod=prop_sel.cod, auditado=filtro_audit, obs=filtro_obs, pagina=p) }}"
          class="btn btn-sm btn-outline-secondary" style="min-width:36px;">{{ p }}</a>
     {% endif %}
   {% endfor %}
 
   <!-- > Siguiente -->
-  <a href="{{ url_for('propiedad', **base_args, pagina=pagina+1) }}"
+  <a href="{{ url_for('propiedad', cod=prop_sel.cod, auditado=filtro_audit, obs=filtro_obs, pagina=pagina+1) }}"
      class="btn btn-sm btn-outline-secondary {% if pagina == total_paginas %}disabled{% endif %}"
      title="Página siguiente">&rsaquo;</a>
 
   <!-- >> Última -->
-  <a href="{{ url_for('propiedad', **base_args, pagina=total_paginas) }}"
+  <a href="{{ url_for('propiedad', cod=prop_sel.cod, auditado=filtro_audit, obs=filtro_obs, pagina=total_paginas) }}"
      class="btn btn-sm btn-outline-secondary {% if pagina == total_paginas %}disabled{% endif %}"
      title="Última página">&raquo;</a>
 
