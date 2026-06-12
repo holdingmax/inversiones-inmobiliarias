@@ -44,9 +44,7 @@
           <img src="{{ url_for('propiedad_imagen', cod=prop_sel.cod) }}"
                alt="Foto de la propiedad" class="prop-img">
         {% else %}
-          <div class="prop-no-img">
-            <i class="bi bi-image"></i>
-          </div>
+          <div class="prop-no-img"><i class="bi bi-image"></i></div>
           <p class="text-muted text-center mt-2" style="font-size:.85rem;">Sin imagen cargada</p>
         {% endif %}
       </div>
@@ -74,24 +72,17 @@
               {% if prop_sel.costo_compra %}
                 {% if prop_sel.moneda_rel %}{{ prop_sel.moneda_rel.signo }}{% else %}${% endif %}
                 {{ '{:,.2f}'.format(prop_sel.costo_compra) }}
-              {% else %}
-                —
-              {% endif %}
+              {% else %}—{% endif %}
             </div>
           </div>
           <div class="col-sm-6">
             <div class="info-label">Fecha de Compra</div>
             <div class="info-value">
-              {% if prop_sel.fecha_compra %}
-                {{ prop_sel.fecha_compra.strftime('%d/%m/%Y') }}
-              {% else %}
-                —
-              {% endif %}
+              {% if prop_sel.fecha_compra %}{{ prop_sel.fecha_compra.strftime('%d/%m/%Y') }}{% else %}—{% endif %}
             </div>
           </div>
         </div>
 
-        <!-- Notas (dentro del mismo recuadro) -->
         {% if prop_sel.notas or prop_sel.adjunto_notas %}
         <hr class="my-3">
         <div class="d-flex align-items-start justify-content-between gap-3">
@@ -116,27 +107,22 @@
           {% endif %}
         </div>
         {% endif %}
-
-      </div><!-- /col datos -->
-    </div><!-- /row -->
-  </div><!-- /card-body -->
-</div><!-- /card ficha -->
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Modal adjunto notas -->
 {% if prop_sel.adjunto_notas %}
-<div class="modal fade" id="modalAdjunto" tabindex="-1" aria-labelledby="modalAdjuntoLabel"
-     aria-hidden="true" data-bs-backdrop="true">
+<div class="modal fade" id="modalAdjunto" tabindex="-1" aria-hidden="true" data-bs-backdrop="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header" style="background:var(--navy); color:#fff;">
-        <h5 class="modal-title" id="modalAdjuntoLabel">
-          <i class="bi bi-image me-2"></i>Adjunto — {{ prop_sel.direccion }}
-        </h5>
+        <h5 class="modal-title"><i class="bi bi-image me-2"></i>Adjunto — {{ prop_sel.direccion }}</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body text-center p-3">
-        <img src="{{ url_for('propiedad_adjunto_notas', cod=prop_sel.cod) }}"
-             alt="Adjunto de notas"
+        <img src="{{ url_for('propiedad_adjunto_notas', cod=prop_sel.cod) }}" alt="Adjunto de notas"
              style="max-width:100%; max-height:75vh; border-radius:6px; box-shadow:0 2px 12px rgba(0,0,0,.2);">
       </div>
       <div class="modal-footer">
@@ -176,48 +162,69 @@
   </div>
 </div>
 
-<!-- Barra de filtros y auditoría grupal -->
+<!-- Barra de filtros unificada -->
 <div class="card mb-3">
   <div class="card-body py-3">
-    <div class="row g-3 align-items-end">
+    <form method="GET" action="{{ url_for('propiedad') }}" id="formFiltros">
+      <input type="hidden" name="cod" value="{{ prop_sel.cod }}">
+      <input type="hidden" name="pagina" value="1">
+      <div class="row g-3 align-items-end">
 
-      <!-- Filtro por auditado -->
-      <div class="col-md-4">
-        <form method="GET" action="{{ url_for('propiedad') }}" id="formFiltroAuditado">
-          <input type="hidden" name="cod" value="{{ prop_sel.cod }}">
-          <label class="form-label info-label mb-1">Filtrar por auditoría</label>
-          <select name="auditado" class="form-select form-select-sm"
-                  onchange="document.getElementById('formFiltroAuditado').submit()">
-            <option value="todos"  {% if filtro_audit == 'todos' %}selected{% endif %}>Todos</option>
-            <option value="si"     {% if filtro_audit == 'si'    %}selected{% endif %}>Solo auditados</option>
-            <option value="no"     {% if filtro_audit == 'no'    %}selected{% endif %}>Solo no auditados</option>
+        <!-- Filtro auditado -->
+        <div class="col-md-3">
+          <label class="form-label info-label mb-1">Auditoría</label>
+          <select name="auditado" class="form-select form-select-sm">
+            <option value="todos" {% if filtro_audit == 'todos' %}selected{% endif %}>Todos</option>
+            <option value="si"    {% if filtro_audit == 'si'    %}selected{% endif %}>Solo auditados</option>
+            <option value="no"    {% if filtro_audit == 'no'    %}selected{% endif %}>Solo no auditados</option>
           </select>
-        </form>
-      </div>
+        </div>
 
-      <!-- Auditar grupo -->
-      <div class="col-md-8">
-        <form method="POST" action="{{ url_for('auditar_grupo') }}"
-              onsubmit="return confirmarAuditaGrupo()">
-          <input type="hidden" name="propiedad_cod" value="{{ prop_sel.cod }}">
-          <input type="hidden" name="filtro_audit"  value="{{ filtro_audit }}">
-          <label class="form-label info-label mb-1">Dar por auditados por concepto</label>
-          <div class="input-group input-group-sm">
-            <select name="concepto_cod" class="form-select" id="selConceptoGrupo" required>
-              <option value="">— Elegir concepto —</option>
-              {% for c in conceptos %}
-                <option value="{{ c.cod }}">{{ c.nombre }}</option>
-              {% endfor %}
-            </select>
-            <button type="submit" class="btn btn-success">
-              <i class="bi bi-check-all me-1"></i>Marcar como auditados
-            </button>
-          </div>
-          <small class="text-muted">Marca como auditados todos los registros no auditados del concepto elegido.</small>
-        </form>
-      </div>
+        <!-- Filtro observaciones -->
+        <div class="col-md-5">
+          <label class="form-label info-label mb-1">Buscar en Observaciones</label>
+          <input type="text" name="obs" class="form-control form-control-sm"
+                 placeholder="Texto a buscar (contiene)…"
+                 value="{{ filtro_obs }}">
+        </div>
 
-    </div>
+        <!-- Botones -->
+        <div class="col-md-4 d-flex gap-2">
+          <button type="submit" class="btn btn-sm" style="background:var(--navy);color:#fff;">
+            <i class="bi bi-search me-1"></i>Filtrar
+          </button>
+          <a href="{{ url_for('propiedad', cod=prop_sel.cod) }}"
+             class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-x-circle me-1"></i>Limpiar
+          </a>
+        </div>
+
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Auditar grupo -->
+<div class="card mb-3">
+  <div class="card-body py-3">
+    <form method="POST" action="{{ url_for('auditar_grupo') }}"
+          onsubmit="return confirmarAuditaGrupo()">
+      <input type="hidden" name="propiedad_cod" value="{{ prop_sel.cod }}">
+      <input type="hidden" name="filtro_audit"  value="{{ filtro_audit }}">
+      <label class="form-label info-label mb-1">Dar por auditados por concepto</label>
+      <div class="input-group input-group-sm" style="max-width:500px;">
+        <select name="concepto_cod" class="form-select" id="selConceptoGrupo" required>
+          <option value="">— Elegir concepto —</option>
+          {% for c in conceptos %}
+            <option value="{{ c.cod }}">{{ c.nombre }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-success">
+          <i class="bi bi-check-all me-1"></i>Marcar como auditados
+        </button>
+      </div>
+      <small class="text-muted">Marca como auditados todos los registros no auditados del concepto elegido.</small>
+    </form>
   </div>
 </div>
 
@@ -243,11 +250,8 @@
           <tr>
             <td class="ps-3">{{ t.fecha.strftime('%d/%m/%Y') }}</td>
             <td class="text-end {% if t.concepto_rel.tipo == 'ingreso' %}ingreso{% else %}egreso{% endif %}">
-              {% if t.concepto_rel.tipo == 'ingreso' %}
-                + {{ '{:,.2f}'.format(t.importe) }}
-              {% else %}
-                − {{ '{:,.2f}'.format(t.importe) }}
-              {% endif %}
+              {% if t.concepto_rel.tipo == 'ingreso' %}+ {{ '{:,.2f}'.format(t.importe) }}
+              {% else %}− {{ '{:,.2f}'.format(t.importe) }}{% endif %}
             </td>
             <td>
               {% if t.concepto_rel.tipo == 'ingreso' %}
@@ -261,27 +265,19 @@
             <td class="text-muted">{{ t.observaciones or '' }}</td>
             <td class="text-center">
               {% if t.auditado %}
-                <!-- Auditado=Sí: clic pide confirmación para pasar a No -->
                 <button type="button"
                         class="badge bg-success border-0 btn-auditado"
                         style="cursor:pointer; font-size:.8rem; padding:.35em .6em;"
                         data-tx-id="{{ t.id }}"
                         data-filtro="{{ filtro_audit }}"
-                        data-accion="desauditado"
-                        onclick="abrirConfirmToggle(this)">
-                  Sí
-                </button>
+                        onclick="abrirConfirmToggle(this)">Sí</button>
               {% else %}
-                <!-- Auditado=No: clic directo para pasar a Sí (sin confirmación) -->
                 <form method="POST"
                       action="{{ url_for('toggle_auditado', tx_id=t.id) }}"
                       style="display:inline;">
                   <input type="hidden" name="filtro_audit" value="{{ filtro_audit }}">
-                  <button type="submit"
-                          class="badge bg-danger border-0"
-                          style="cursor:pointer; font-size:.8rem; padding:.35em .6em;">
-                    No
-                  </button>
+                  <button type="submit" class="badge bg-danger border-0"
+                          style="cursor:pointer; font-size:.8rem; padding:.35em .6em;">No</button>
                 </form>
               {% endif %}
             </td>
@@ -290,7 +286,7 @@
         </tbody>
         <tfoot>
           <tr class="total-row">
-            <td class="ps-3">TOTAL</td>
+            <td class="ps-3">TOTAL ({{ total_tx }} registros)</td>
             <td class="text-end {% if total_neto >= 0 %}text-success{% else %}text-danger{% endif %}">
               $ {{ '{:,.2f}'.format(total_neto) }}
             </td>
@@ -300,6 +296,56 @@
       </table>
     </div>
   </div>
+</div>
+
+<!-- Paginación -->
+{% if total_paginas > 1 %}
+<div class="d-flex justify-content-center align-items-center gap-1 mt-3 flex-wrap">
+
+  {# Helpers para armar URLs conservando filtros #}
+  {% set base_args = {'cod': prop_sel.cod, 'auditado': filtro_audit, 'obs': filtro_obs} %}
+
+  <!-- << Primera -->
+  <a href="{{ url_for('propiedad', **base_args, pagina=1) }}"
+     class="btn btn-sm btn-outline-secondary {% if pagina == 1 %}disabled{% endif %}"
+     title="Primera página">&laquo;</a>
+
+  <!-- < Anterior -->
+  <a href="{{ url_for('propiedad', **base_args, pagina=pagina-1) }}"
+     class="btn btn-sm btn-outline-secondary {% if pagina == 1 %}disabled{% endif %}"
+     title="Página anterior">&lsaquo;</a>
+
+  <!-- Números de página -->
+  {% for p in paginas_visibles %}
+    {% if p is none %}
+      <span class="btn btn-sm disabled" style="border:none; cursor:default;">…</span>
+    {% elif p == pagina %}
+      <span class="btn btn-sm" style="background:var(--navy); color:#fff; min-width:36px;">{{ p }}</span>
+    {% else %}
+      <a href="{{ url_for('propiedad', **base_args, pagina=p) }}"
+         class="btn btn-sm btn-outline-secondary" style="min-width:36px;">{{ p }}</a>
+    {% endif %}
+  {% endfor %}
+
+  <!-- > Siguiente -->
+  <a href="{{ url_for('propiedad', **base_args, pagina=pagina+1) }}"
+     class="btn btn-sm btn-outline-secondary {% if pagina == total_paginas %}disabled{% endif %}"
+     title="Página siguiente">&rsaquo;</a>
+
+  <!-- >> Última -->
+  <a href="{{ url_for('propiedad', **base_args, pagina=total_paginas) }}"
+     class="btn btn-sm btn-outline-secondary {% if pagina == total_paginas %}disabled{% endif %}"
+     title="Última página">&raquo;</a>
+
+  <span class="text-muted ms-2" style="font-size:.85rem;">
+    Página {{ pagina }} de {{ total_paginas }}
+  </span>
+</div>
+{% endif %}
+
+{% elif filtro_obs or filtro_audit != 'todos' %}
+<div class="alert alert-info mt-3">
+  <i class="bi bi-info-circle me-2"></i>No hay transacciones que coincidan con los filtros aplicados.
 </div>
 {% else %}
 <div class="alert alert-info">
@@ -320,7 +366,6 @@
         <p class="mb-0">¿Querés marcar este registro como <strong>No auditado</strong>?</p>
       </div>
       <div class="modal-footer justify-content-center gap-3 border-0 pb-4">
-        <!-- Sí: confirmar (fondo verde) -->
         <form id="formToggleAuditado" method="POST" action="">
           <input type="hidden" name="filtro_audit" id="hiddenFiltroToggle" value="">
           <button type="submit" class="btn px-4 fw-semibold"
@@ -328,7 +373,6 @@
             <i class="bi bi-check-lg me-1"></i>Sí
           </button>
         </form>
-        <!-- No: cancelar (fondo rojo) -->
         <button type="button" class="btn px-4 fw-semibold" data-bs-dismiss="modal"
                 style="background:#dc3545; color:#fff; min-width:90px;">
           <i class="bi bi-x-lg me-1"></i>No

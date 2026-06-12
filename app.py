@@ -140,18 +140,41 @@ def dashboard():
 
 # ─── Propiedad ────────────────────────────────────────────────────────────────
 
+_PAGE_SIZE = 50
+
+
+def _paginas_visibles(pagina, total, delta=2):
+    """Devuelve lista de números de página con None donde va el '…'."""
+    pages = set()
+    pages.add(1)
+    pages.add(total)
+    for p in range(max(1, pagina - delta), min(total + 1, pagina + delta + 1)):
+        pages.add(p)
+    result, prev = [], 0
+    for p in sorted(pages):
+        if p - prev > 1:
+            result.append(None)
+        result.append(p)
+        prev = p
+    return result
+
+
 @app.route('/propiedad')
 @login_required
 def propiedad():
     propiedades = Propiedad.query.order_by(Propiedad.direccion).all()
-    prop_sel = None
-    transacciones = []
+    prop_sel       = None
+    transacciones  = []
     total_ingresos = Decimal('0')
-    total_egresos = Decimal('0')
-    conceptos = Concepto.query.order_by(Concepto.nombre).all()
+    total_egresos  = Decimal('0')
+    conceptos      = Concepto.query.order_by(Concepto.nombre).all()
+    total_paginas  = 1
+    total_tx       = 0
 
     cod          = request.args.get('cod', type=int)
-    filtro_audit = request.args.get('auditado', 'todos')  # 'todos'|'si'|'no'
+    filtro_audit = request.args.get('auditado', 'todos')
+    filtro_obs   = request.args.get('obs', '').strip()
+    pagina       = request.args.get('pagina', 1, type=int)
 
     if cod:
         prop_sel = db.session.get(Propiedad, cod)
@@ -161,12 +184,21 @@ def propiedad():
                 q = q.filter_by(auditado=True)
             elif filtro_audit == 'no':
                 q = q.filter_by(auditado=False)
-            transacciones = q.order_by(Transaccion.fecha).all()
-            for t in transacciones:
+            if filtro_obs:
+                q = q.filter(Transaccion.observaciones.ilike(f'%{filtro_obs}%'))
+            q = q.order_by(Transaccion.fecha)
+
+            todas = q.all()
+            total_tx = len(todas)
+            for t in todas:
                 if t.concepto_rel.tipo == 'ingreso':
                     total_ingresos += t.importe
                 else:
                     total_egresos += t.importe
+
+            total_paginas = max(1, (total_tx + _PAGE_SIZE - 1) // _PAGE_SIZE)
+            pagina = max(1, min(pagina, total_paginas))
+            transacciones = todas[(pagina - 1) * _PAGE_SIZE: pagina * _PAGE_SIZE]
 
     return render_template('propiedad.html',
                            propiedades=propiedades,
@@ -177,7 +209,12 @@ def propiedad():
                            total_neto=total_ingresos - total_egresos,
                            cod_sel=cod,
                            filtro_audit=filtro_audit,
-                           conceptos=conceptos)
+                           filtro_obs=filtro_obs,
+                           conceptos=conceptos,
+                           pagina=pagina,
+                           total_paginas=total_paginas,
+                           total_tx=total_tx,
+                           paginas_visibles=_paginas_visibles(pagina, total_paginas))
 
 
 @app.route('/propiedad/imagen/<int:cod>')
