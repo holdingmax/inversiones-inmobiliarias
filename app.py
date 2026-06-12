@@ -53,7 +53,7 @@ class Usuario(db.Model):
 class Propiedad(db.Model):
     __tablename__ = 'propiedades'
     cod = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    direccion = db.Column(db.String(50), nullable=False)
+    direccion = db.Column(db.String(100), nullable=False, unique=True)
     disponible = db.Column(db.Boolean, default=True)
     costo_compra = db.Column(db.Numeric(15, 2))
     moneda_cod = db.Column(db.Integer, db.ForeignKey('monedas.cod'))
@@ -1378,6 +1378,7 @@ def init_db():
         'ALTER TABLE propiedades ADD COLUMN adjunto_notas BLOB',
         'ALTER TABLE propiedades ADD COLUMN adjunto_notas_tipo VARCHAR(50)',
         'ALTER TABLE transacciones ADD COLUMN auditado BOOLEAN NOT NULL DEFAULT 1',
+        'ALTER TABLE propiedades ALTER COLUMN direccion TYPE VARCHAR(100)',
     ]:
         try:
             with db.engine.connect() as conn:
