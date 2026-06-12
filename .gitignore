@@ -9,3 +9,6 @@ venv/
 env/
 .DS_Store
 Thumbs.db
+migrate_to_postgres.py
+backup_db.py
+backups/
