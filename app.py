@@ -140,7 +140,7 @@ def dashboard():
 
 # ─── Propiedad ────────────────────────────────────────────────────────────────
 
-_PAGE_SIZE = 50
+_PAGE_SIZE = 30
 
 
 def _paginas_visibles(pagina, total, delta=2):
