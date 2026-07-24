@@ -3,6 +3,8 @@ import uuid
 import json
 import csv
 import io
+import smtplib
+from email.mime.text import MIMEText
 from datetime import datetime, date, timedelta
 from decimal import Decimal, InvalidOperation
 from functools import wraps
@@ -12,6 +14,7 @@ from flask import (Flask, render_template, request, redirect,
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
 from werkzeug.security import generate_password_hash, check_password_hash
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
 try:
     import pandas as pd
@@ -38,6 +41,14 @@ app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB máx. para imágenes
 
+app.config['MAIL_SERVER']   = os.environ.get('MAIL_SERVER', '')
+app.config['MAIL_PORT']     = int(os.environ.get('MAIL_PORT', 465))
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', '')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', '')
+
+RESET_TOKEN_SALT    = 'reset-password'
+RESET_TOKEN_MAX_AGE = 60 * 60  # 60 minutos, en segundos
+
 db = SQLAlchemy(app)
 
 
@@ -48,6 +59,9 @@ class Usuario(db.Model):
     cod = db.Column(db.Integer, primary_key=True, autoincrement=True)
     nombre_usuario = db.Column(db.String(30), unique=True, nullable=False)
     password = db.Column(db.String(256), nullable=False)
+    email = db.Column(db.String(120), nullable=True)
+    reset_token = db.Column(db.String(256), nullable=True)
+    reset_token_expira = db.Column(db.DateTime, nullable=True)
 
 
 class Propiedad(db.Model):
@@ -129,6 +143,95 @@ def login():
 def logout():
     session.clear()
     return redirect(url_for('login'))
+
+
+# ─── Recuperación de contraseña ───────────────────────────────────────────────
+
+def _get_serializer():
+    return URLSafeTimedSerializer(app.secret_key)
+
+
+def _enviar_mail_reset(destinatario, link):
+    asunto = 'Recuperar contraseña — Inversiones Inmobiliarias'
+    cuerpo = (
+        'Recibimos una solicitud para restablecer tu contraseña.\n\n'
+        f'Hacé click en el siguiente link (válido por 60 minutos):\n{link}\n\n'
+        'Si no solicitaste esto, ignorá este mensaje.'
+    )
+    msg = MIMEText(cuerpo, 'plain', 'utf-8')
+    msg['Subject'] = asunto
+    msg['From'] = app.config['MAIL_USERNAME']
+    msg['To'] = destinatario
+
+    # El puerto 465 usa SSL implícito (SMTPS): la conexión ya nace cifrada,
+    # a diferencia del 587/25 que arrancan en plano y negocian STARTTLS.
+    with smtplib.SMTP_SSL(app.config['MAIL_SERVER'], app.config['MAIL_PORT']) as server:
+        server.login(app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])
+        server.sendmail(app.config['MAIL_USERNAME'], [destinatario], msg.as_string())
+
+
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        nombre = request.form.get('nombre_usuario', '').strip()
+        usuario = Usuario.query.filter_by(nombre_usuario=nombre).first()
+
+        if usuario and usuario.email:
+            token = _get_serializer().dumps(usuario.cod, salt=RESET_TOKEN_SALT)
+            usuario.reset_token = token
+            usuario.reset_token_expira = datetime.utcnow() + timedelta(minutes=60)
+            db.session.commit()
+            link = url_for('reset_password', token=token, _external=True)
+            try:
+                _enviar_mail_reset(usuario.email, link)
+            except Exception as e:
+                app.logger.error(f'Error al enviar mail de reset de contraseña: {e}')
+
+        # Mensaje siempre genérico: no revela si el usuario existe ni si tiene email.
+        flash('Si el usuario existe y tiene un email cargado, te enviamos '
+              'instrucciones para restablecer tu contraseña.', 'info')
+        return redirect(url_for('forgot_password'))
+
+    return render_template('forgot_password.html')
+
+
+@app.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    try:
+        cod = _get_serializer().loads(token, salt=RESET_TOKEN_SALT, max_age=RESET_TOKEN_MAX_AGE)
+    except SignatureExpired:
+        flash('El link para restablecer tu contraseña venció. Solicitá uno nuevo.', 'danger')
+        return redirect(url_for('forgot_password'))
+    except BadSignature:
+        flash('El link para restablecer tu contraseña no es válido.', 'danger')
+        return redirect(url_for('forgot_password'))
+
+    usuario = db.session.get(Usuario, cod)
+    token_valido = (usuario and usuario.reset_token == token
+                    and usuario.reset_token_expira
+                    and usuario.reset_token_expira >= datetime.utcnow())
+    if not token_valido:
+        flash('El link para restablecer tu contraseña no es válido o ya fue usado.', 'danger')
+        return redirect(url_for('forgot_password'))
+
+    if request.method == 'POST':
+        pwd = request.form.get('password', '')
+        pwd_confirm = request.form.get('password_confirm', '')
+        if len(pwd) < 6:
+            flash('La contraseña debe tener al menos 6 caracteres.', 'warning')
+            return render_template('reset_password.html', token=token)
+        if pwd != pwd_confirm:
+            flash('Las contraseñas no coinciden.', 'warning')
+            return render_template('reset_password.html', token=token)
+
+        usuario.password = generate_password_hash(pwd)
+        usuario.reset_token = None
+        usuario.reset_token_expira = None
+        db.session.commit()
+        flash('Contraseña actualizada correctamente. Ya podés iniciar sesión.', 'success')
+        return redirect(url_for('login'))
+
+    return render_template('reset_password.html', token=token)
 
 
 # ─── Dashboard ────────────────────────────────────────────────────────────────
@@ -1379,6 +1482,9 @@ def init_db():
         'ALTER TABLE propiedades ADD COLUMN adjunto_notas_tipo VARCHAR(50)',
         'ALTER TABLE transacciones ADD COLUMN auditado BOOLEAN NOT NULL DEFAULT 1',
         'ALTER TABLE propiedades ALTER COLUMN direccion TYPE VARCHAR(100)',
+        'ALTER TABLE usuarios ADD COLUMN email VARCHAR(120)',
+        'ALTER TABLE usuarios ADD COLUMN reset_token VARCHAR(256)',
+        'ALTER TABLE usuarios ADD COLUMN reset_token_expira TIMESTAMP',
     ]:
         try:
             with db.engine.connect() as conn:

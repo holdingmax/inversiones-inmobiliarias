@@ -1,6 +1,7 @@
 Flask
 Flask-SQLAlchemy
 Werkzeug
+itsdangerous
 SQLAlchemy
 pandas
 openpyxl
