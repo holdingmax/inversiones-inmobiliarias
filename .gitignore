@@ -13,3 +13,8 @@ migrate_to_postgres.py
 fix_duplicados.py
 backup_db.py
 backups/
+respaldar.bat
+subir_imagenes.py
+import_backup.py
+verificar_datos.py
+respaldar.txt
