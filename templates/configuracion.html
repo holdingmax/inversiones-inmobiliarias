@@ -273,6 +273,7 @@
               <tr>
                 <th class="ps-3">#</th>
                 <th>Usuario</th>
+                <th>Email</th>
                 <th class="text-center">Acciones</th>
               </tr>
             </thead>
@@ -286,6 +287,7 @@
                     <span class="badge bg-primary ms-2">Sesión activa</span>
                   {% endif %}
                 </td>
+                <td class="text-muted">{{ u.email or '—' }}</td>
                 <td class="text-center">
                   <button class="btn btn-sm btn-outline-primary me-1 btn-edit-usr"
                     data-cod="{{ u.cod }}"
@@ -293,6 +295,14 @@
                     data-bs-toggle="modal" data-bs-target="#editUsrModal"
                     title="Cambiar contraseña">
                     <i class="bi bi-key-fill"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline-primary me-1 btn-edit-email"
+                    data-cod="{{ u.cod }}"
+                    data-nombre="{{ u.nombre_usuario }}"
+                    data-email="{{ u.email or '' }}"
+                    data-bs-toggle="modal" data-bs-target="#editEmailModal"
+                    title="Editar email">
+                    <i class="bi bi-envelope-fill"></i>
                   </button>
                   {% if u.cod != session.usuario_id %}
                   <button class="btn btn-sm btn-outline-danger btn-confirmar-delete"
@@ -666,6 +676,39 @@
 </div>
 
 
+<!-- Editar Usuario (email) -->
+<div class="modal fade" id="editEmailModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--gold);color:var(--navy);">
+        <h5 class="modal-title fw-bold"><i class="bi bi-envelope-fill me-2"></i>Editar Email</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" id="editEmailForm" action="">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold text-muted">Usuario</label>
+            <p id="editEmailNombre" class="form-control-plaintext fw-bold fs-5" style="color:var(--navy);"></p>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Email</label>
+            <input type="email" name="email" id="editEmailInput" class="form-control" maxlength="120"
+                   placeholder="usuario@ejemplo.com">
+            <div class="form-text">Se usa para recuperar la contraseña. Dejalo vacío para quitarlo.</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn fw-semibold px-4" style="background:var(--navy);color:#fff;">
+            <i class="bi bi-save2-fill me-1"></i>Guardar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
 <!-- ════════════════════════════════════════════════════════
      MODAL — CONFIRMACIÓN DE ELIMINACIÓN
 ════════════════════════════════════════════════════════ -->
@@ -765,12 +808,22 @@
     });
   });
 
-  // ── Editar Usuario ────────────────────────────────────
+  // ── Editar Usuario (contraseña) ───────────────────────
   document.querySelectorAll('.btn-edit-usr').forEach(btn => {
     btn.addEventListener('click', () => {
       document.getElementById('editUsrForm').action =
         `/config/usuario/edit/${btn.dataset.cod}`;
       document.getElementById('editUsrNombre').textContent = btn.dataset.nombre;
+    });
+  });
+
+  // ── Editar Usuario (email) ────────────────────────────
+  document.querySelectorAll('.btn-edit-email').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.getElementById('editEmailForm').action =
+        `/config/usuario/${btn.dataset.cod}/email`;
+      document.getElementById('editEmailNombre').textContent = btn.dataset.nombre;
+      document.getElementById('editEmailInput').value = btn.dataset.email;
     });
   });
 </script>

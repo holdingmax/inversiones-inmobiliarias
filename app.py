@@ -1,4 +1,5 @@
 import os
+import re
 import uuid
 import json
 import csv
@@ -48,6 +49,8 @@ app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', '')
 
 RESET_TOKEN_SALT    = 'reset-password'
 RESET_TOKEN_MAX_AGE = 60 * 60  # 60 minutos, en segundos
+
+EMAIL_REGEX = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
 
 db = SQLAlchemy(app)
 
@@ -917,6 +920,27 @@ def config_usuario_edit(cod):
         u.password = generate_password_hash(nueva_pwd)
         db.session.commit()
         flash(f'Contraseña de "{u.nombre_usuario}" actualizada correctamente.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error al actualizar: {e}', 'danger')
+    return redirect(url_for('configuracion') + '#usuarios')
+
+
+@app.route('/config/usuario/<int:cod>/email', methods=['POST'])
+@login_required
+def config_usuario_editar_email(cod):
+    u = db.session.get(Usuario, cod)
+    if not u:
+        flash('Usuario no encontrado.', 'warning')
+        return redirect(url_for('configuracion') + '#usuarios')
+    email = request.form.get('email', '').strip()
+    if email and not EMAIL_REGEX.match(email):
+        flash('El formato del email no es válido.', 'warning')
+        return redirect(url_for('configuracion') + '#usuarios')
+    try:
+        u.email = email[:120] or None
+        db.session.commit()
+        flash(f'Email de "{u.nombre_usuario}" actualizado correctamente.', 'success')
     except Exception as e:
         db.session.rollback()
         flash(f'Error al actualizar: {e}', 'danger')
