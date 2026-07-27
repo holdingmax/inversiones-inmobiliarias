@@ -24,4 +24,4 @@ databases:
   - name: inversiones-db
     databaseName: inversiones
     user: inversiones_user
-    plan: free
+    plan: basic-256mb
