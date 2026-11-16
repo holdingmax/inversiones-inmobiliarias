@@ -96,13 +96,26 @@
 
 <!-- Tabla -->
 {% if transacciones %}
+<!-- Barra de selección múltiple (paso 1: botón aún deshabilitado) -->
+<div class="d-flex align-items-center gap-3 mb-2">
+  <button type="button" id="btnEliminarSel" class="btn btn-sm btn-danger" disabled>
+    <i class="bi bi-trash-fill me-1"></i>Eliminar seleccionadas
+  </button>
+  <span class="text-muted" style="font-size:.88rem;">
+    <strong id="contadorSel">0</strong> seleccionada(s)
+  </span>
+</div>
 <div class="card">
   <div class="card-body p-0">
     <div class="table-responsive">
       <table class="table table-hover mb-0">
         <thead style="background:var(--navy); color:#fff;">
           <tr>
-            <th class="ps-3">ID</th>
+            <th class="ps-3" style="width:36px;">
+              <input type="checkbox" class="form-check-input" id="chkTodas"
+                     title="Seleccionar todas las de esta página">
+            </th>
+            <th>ID</th>
             <th>Fecha</th>
             <th>Propiedad</th>
             <th>Concepto</th>
@@ -115,9 +128,12 @@
         <tbody>
           {% for t in transacciones %}
           <tr>
-            <td class="ps-3 text-muted" style="font-size:.82rem;">{{ t.id }}</td>
+            <td class="ps-3">
+              <input type="checkbox" class="form-check-input chk-fila" value="{{ t.id }}">
+            </td>
+            <td class="text-muted" style="font-size:.82rem;">{{ t.id }}</td>
             <td>{{ t.fecha.strftime('%d/%m/%Y') }}</td>
-            <td>{{ t.propiedad_rel.direccion if t.propiedad_rel else '—' }}</td>
+            <td>{{ t.propiedad.direccion if t.propiedad else '—' }}</td>
             <td>
               <span class="badge {% if t.concepto_rel.tipo == 'ingreso' %}bg-success{% else %}bg-danger{% endif %}">
                 {{ t.concepto_rel.nombre }}
@@ -309,6 +325,26 @@
     document.getElementById('editObs').value       = obs;
     new bootstrap.Modal(document.getElementById('modalEditar')).show();
   }
+
+  // Selección múltiple (solo filas visibles de la página)
+  (function () {
+    const chkTodas = document.getElementById('chkTodas');
+    const filas    = Array.from(document.querySelectorAll('.chk-fila'));
+    const contador = document.getElementById('contadorSel');
+    if (!chkTodas || !contador) return;
+
+    function actualizar() {
+      const n = filas.filter(c => c.checked).length;
+      contador.textContent = n;
+      chkTodas.checked = filas.length > 0 && n === filas.length;
+      chkTodas.indeterminate = n > 0 && n < filas.length;
+    }
+    chkTodas.addEventListener('change', () => {
+      filas.forEach(c => c.checked = chkTodas.checked);
+      actualizar();
+    });
+    filas.forEach(c => c.addEventListener('change', actualizar));
+  })();
 
   function abrirEliminar(id) {
     document.getElementById('formEliminar').action = `/config/transaccion/${id}/eliminar`;
