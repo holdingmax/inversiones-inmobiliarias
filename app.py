@@ -1391,6 +1391,31 @@ def config_transaccion_eliminar(tx_id):
     return redirect(url_for('config_transacciones', **_filtros_tx_from_form()))
 
 
+@app.route('/config/transacciones/eliminar_masivo', methods=['POST'])
+@login_required
+def config_transacciones_eliminar_masivo():
+    ids = set()
+    for raw in request.form.getlist('ids'):
+        try:
+            ids.add(int(raw))
+        except (ValueError, TypeError):
+            pass  # id inválido: se descarta
+    if not ids:
+        flash('No se seleccionó ninguna transacción válida. No se borró nada.', 'warning')
+        return redirect(url_for('config_transacciones', **_filtros_tx_from_form()))
+    try:
+        # Todo o nada: un solo commit; los ids inexistentes simplemente no aparecen
+        existentes = Transaccion.query.filter(Transaccion.id.in_(ids)).all()
+        for t in existentes:
+            db.session.delete(t)
+        db.session.commit()
+        flash(f'{len(existentes)} transacción/es eliminada/s correctamente.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error al eliminar. No se borró ninguna transacción: {e}', 'danger')
+    return redirect(url_for('config_transacciones', **_filtros_tx_from_form()))
+
+
 # ─── Preparador de archivos para carga masiva ────────────────────────────────
 
 @app.route('/carga/preparar_upload', methods=['POST'])

@@ -9,14 +9,6 @@
   <h3 class="section-title mb-0">Gestión de Transacciones</h3>
 </div>
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% for cat, msg in messages %}
-    <div class="alert alert-{{ cat }} alert-dismissible fade show">
-      {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-  {% endfor %}
-{% endwith %}
-
 <!-- Filtros -->
 <div class="card mb-3">
   <div class="card-body py-3">
@@ -96,15 +88,23 @@
 
 <!-- Tabla -->
 {% if transacciones %}
-<!-- Barra de selección múltiple (paso 1: botón aún deshabilitado) -->
-<div class="d-flex align-items-center gap-3 mb-2">
-  <button type="button" id="btnEliminarSel" class="btn btn-sm btn-danger" disabled>
+<!-- Barra de selección múltiple -->
+<form method="POST" action="{{ url_for('config_transacciones_eliminar_masivo') }}"
+      id="formEliminarMasivo" class="d-flex align-items-center gap-3 mb-2">
+  <input type="hidden" name="prop_filtro"      value="{{ prop_filtro or '' }}">
+  <input type="hidden" name="concepto_filtro"  value="{{ concepto_filtro or '' }}">
+  <input type="hidden" name="fecha_desde"      value="{{ fecha_desde }}">
+  <input type="hidden" name="fecha_hasta"      value="{{ fecha_hasta }}">
+  <input type="hidden" name="importe_desde"    value="{{ importe_desde }}">
+  <input type="hidden" name="importe_hasta"    value="{{ importe_hasta }}">
+  <input type="hidden" name="pagina"           value="{{ pagina }}">
+  <button type="submit" id="btnEliminarSel" class="btn btn-sm btn-danger" disabled>
     <i class="bi bi-trash-fill me-1"></i>Eliminar seleccionadas
   </button>
   <span class="text-muted" style="font-size:.88rem;">
     <strong id="contadorSel">0</strong> seleccionada(s)
   </span>
-</div>
+</form>
 <div class="card">
   <div class="card-body p-0">
     <div class="table-responsive">
@@ -129,7 +129,8 @@
           {% for t in transacciones %}
           <tr>
             <td class="ps-3">
-              <input type="checkbox" class="form-check-input chk-fila" value="{{ t.id }}">
+              <input type="checkbox" class="form-check-input chk-fila" name="ids" value="{{ t.id }}"
+                     form="formEliminarMasivo">
             </td>
             <td class="text-muted" style="font-size:.82rem;">{{ t.id }}</td>
             <td>{{ t.fecha.strftime('%d/%m/%Y') }}</td>
@@ -331,11 +332,22 @@
     const chkTodas = document.getElementById('chkTodas');
     const filas    = Array.from(document.querySelectorAll('.chk-fila'));
     const contador = document.getElementById('contadorSel');
+    const btnElim  = document.getElementById('btnEliminarSel');
+    const formMasivo = document.getElementById('formEliminarMasivo');
     if (!chkTodas || !contador) return;
+
+    // Paso 2: confirmación simple del navegador (el modal llega en el Paso 3)
+    formMasivo.addEventListener('submit', (e) => {
+      const n = filas.filter(c => c.checked).length;
+      if (n === 0 || !confirm(`Se van a borrar ${n} transacción(es). Esta acción no se puede deshacer. ¿Continuar?`)) {
+        e.preventDefault();
+      }
+    });
 
     function actualizar() {
       const n = filas.filter(c => c.checked).length;
       contador.textContent = n;
+      if (btnElim) btnElim.disabled = (n === 0);
       chkTodas.checked = filas.length > 0 && n === filas.length;
       chkTodas.indeterminate = n > 0 && n < filas.length;
     }
